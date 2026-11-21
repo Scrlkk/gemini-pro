@@ -311,6 +311,7 @@ def ensure_frida_server():
 
 def read_purchase_token(sku_short: str, expected_account: str = "") -> str:
     """Read a valid matching-account purchase token without retaining Play DB copies."""
+    import contextlib
     import sqlite3
     import json as _json
 
@@ -333,7 +334,8 @@ def read_purchase_token(sku_short: str, expected_account: str = "") -> str:
             now_ms = int(time.time() * 1000)
             picked = None
             try:
-                with sqlite3.connect(str(local)) as con:
+                # sqlite3.Connection.__exit__ only commits/rolls back; closing() releases the file lock on Windows.
+                with contextlib.closing(sqlite3.connect(str(local))) as con:
                     rows = con.execute(
                         "select account, subs_valid_until_time, inapp_purchase_data "
                         "from ownership where doc_id like ?",
@@ -611,24 +613,38 @@ def add_card(card: dict) -> bool:
 
 def current_play_account() -> str:
     """Read the visible account from Play Store; unknown is not an account mismatch."""
+    profile_descs = (
+        "\u8d26\u53f7\u548c\u8bbe\u7f6e",
+        "Account and settings",
+        "T\u00e0i kho\u1ea3n v\u00e0 ch\u1ebf \u0111\u1ed9 c\u00e0i \u0111\u1eb7t",
+    )
     xml = ui_xml()
     if f'package="{VENDING}"' not in xml:
         note("Opening Play Store to verify the account (Google One may be foreground)...")
         sh("shell", f"am start -n {VENDING}/com.google.android.finsky.activities.MainActivity", timeout=25)
         time.sleep(3)
         xml = ui_xml()
+
+    # Retry briefly if Play Store is still transitioning or rendering its profile icon.
+    opened_profile = False
+    for attempt in range(3):
+        if f'package="{VENDING}"' in xml:
+            for n in nodes(xml):
+                if any(label in n["desc"] for label in profile_descs):
+                    tap(n["x"], n["y"])
+                    time.sleep(3)
+                    opened_profile = True
+                    break
+            if opened_profile:
+                break
+        if attempt < 2:
+            time.sleep(2)
+            xml = ui_xml()
+
     if f'package="{VENDING}"' not in xml:
         warn("Cannot inspect Play Store UI. Open Play Store, tap the profile icon, and retry.")
         return ""
 
-    opened_profile = False
-    for n in nodes(xml):
-        if ("\u8d26\u53f7\u548c\u8bbe\u7f6e" in n["desc"] or "Account and settings" in n["desc"]
-                or "T\u00e0i kho\u1ea3n v\u00e0 ch\u1ebf \u0111\u1ed9 c\u00e0i \u0111\u1eb7t" in n["desc"]):
-            tap(n["x"], n["y"])
-            time.sleep(3)
-            opened_profile = True
-            break
     best = ""
     for n in nodes(ui_xml()):
         m = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)", n["desc"] + " " + n["text"])

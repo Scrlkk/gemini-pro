@@ -40,6 +40,20 @@ class DeviceDiagnosticsTests(unittest.TestCase):
             self.assertEqual(result, "example@example.com")
             self.assertTrue(any("am start -n com.android.vending/" in " ".join(a) for a in called))
 
+    def test_slow_play_store_profile_icon_is_retried(self):
+        xml = ['<node package="com.google.android.apps.subscriptions.red" />',
+               '<node package="com.android.vending" />',
+               '<node package="com.android.vending" />',
+               '<node package="com.android.vending" />']
+        loading = [{"desc": "Loading", "text": "", "x": 0, "y": 0}]
+        profile = [{"desc": "Account and settings", "text": "", "x": 12, "y": 34}]
+        email = [{"desc": "example@example.com", "text": "", "x": 12, "y": 34}]
+        with patch.object(mod, "ui_xml", side_effect=xml), \
+             patch.object(mod, "nodes", side_effect=[loading, profile, email]), \
+             patch.object(mod, "tap"), patch.object(mod.time, "sleep"), \
+             patch.object(mod, "sh", return_value=""):
+            self.assertEqual(mod.current_play_account(), "example@example.com")
+
     def test_missing_google_one_is_not_launched(self):
         with patch.object(mod, "sh", return_value="") as adb:
             self.assertEqual(mod.launch_app(), 0)

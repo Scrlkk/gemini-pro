@@ -1,4 +1,5 @@
 """Local DB tests: only valid, matching-account Google AI Pro tokens qualify."""
+import contextlib
 import importlib.util
 import json
 from pathlib import Path
@@ -19,7 +20,7 @@ class PurchaseTokenTests(unittest.TestCase):
     def test_android_database_copy_is_removed_after_success(self):
         with tempfile.TemporaryDirectory() as home:
             source = Path(home) / "test.db"
-            with sqlite3.connect(source) as db:
+            with contextlib.closing(sqlite3.connect(source)) as db, db:
                 db.execute("CREATE TABLE ownership (doc_id text, account text, "
                            "subs_valid_until_time integer, inapp_purchase_data text)")
                 db.execute("INSERT INTO ownership VALUES (?, ?, ?, ?)",
@@ -78,7 +79,7 @@ class PurchaseTokenTests(unittest.TestCase):
             root = Path(home)
             source = root / "play-library.db"
             now = int(time.time() * 1000)
-            with sqlite3.connect(source) as db:
+            with contextlib.closing(sqlite3.connect(source)) as db, db:
                 db.execute("CREATE TABLE ownership (doc_id text, account text, "
                            "subs_valid_until_time integer, inapp_purchase_data text)")
                 for account, until, token in (
