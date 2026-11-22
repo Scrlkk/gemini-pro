@@ -18,7 +18,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from device_selector import auto_select_device, online_serials
+from device_selector import auto_select_device, ensure_online_serials
 
 BASE = Path(__file__).resolve().parent
 ADB_CANDIDATES = [
@@ -174,14 +174,7 @@ def find_adb() -> str:
 def connect_emulator(adb):
     """Select an existing Android device; do not connect all emulator ports."""
     step("Connecting to the emulator")
-    devices = online_serials(adb)
-    if not devices:
-        for port in ("16384", "7555", "16416", "21503", "62001"):
-            subprocess.run([adb, "connect", f"127.0.0.1:{port}"],
-                           capture_output=True, text=True, errors="replace", timeout=10)
-            devices = online_serials(adb)
-            if devices:
-                break
+    devices = ensure_online_serials(adb)
     if not devices:
         warn("No online Android device. Start MuMu and enable ADB debugging.")
         return None

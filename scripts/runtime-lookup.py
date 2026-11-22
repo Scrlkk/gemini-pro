@@ -22,6 +22,10 @@ def resolve_value(command, serial=None):
         if command == "adb":
             import setup_env
             return str(setup_env.find_adb())
+        if command == "connect":
+            import setup_env
+            from device_selector import ensure_online_serials
+            return ",".join(ensure_online_serials(setup_env.find_adb()))
         if command == "device":
             import setup_env
             from device_selector import auto_select_device
@@ -36,7 +40,7 @@ def resolve_value(command, serial=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="ASCII-safe runtime metadata lookup")
-    parser.add_argument("command", choices=("adb", "device", "play-account"))
+    parser.add_argument("command", choices=("adb", "connect", "device", "play-account"))
     parser.add_argument("--serial", help="ADB device serial (required for play-account)")
     args = parser.parse_args(argv)
     if args.command == "play-account" and not args.serial:

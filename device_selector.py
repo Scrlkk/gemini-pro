@@ -5,10 +5,13 @@ When devices differ, choose a unique device running Google One or the only
 one with Google One installed. Never choose arbitrarily among candidates.
 """
 import re
+import socket
 import subprocess
 
 GOOGLE_ONE = "com.google.android.apps.subscriptions.red"
 BOOT_UUID = re.compile(r"^[a-fA-F0-9]{8}-(?:[a-fA-F0-9]{4}-){3}[a-fA-F0-9]{12}$")
+# MuMu 12 instances increment by 32 from 16384; keep legacy MuMu/Nox/LDPlayer ports as fallback.
+EMULATOR_PORTS = ("16384", "16416", "16448", "16480", "16512", "7555", "21503", "62001")
 
 
 def adb_command(adb, *args):
@@ -28,6 +31,29 @@ def online_serials(adb):
         fields = line.split()
         if len(fields) >= 2 and fields[1] == "device":
             online.append(fields[0])
+    return online
+
+
+def _is_local_port_open(port, timeout=0.25):
+    try:
+        with socket.create_connection(("127.0.0.1", int(port)), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def ensure_online_serials(adb, ports=EMULATOR_PORTS):
+    """Return online ADB serials, probing listening local emulator ports if none are online."""
+    online = online_serials(adb)
+    if online:
+        return online
+    for port in ports:
+        if not _is_local_port_open(port):
+            continue
+        adb_command(adb, "connect", f"127.0.0.1:{port}")
+        online = online_serials(adb)
+        if online:
+            break
     return online
 
 

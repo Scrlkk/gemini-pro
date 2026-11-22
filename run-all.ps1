@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Single-entry Windows/MuMu setup, diagnostics, offer listing and optional guided stages.
@@ -234,6 +234,17 @@ try {
             if ($line -match '^\s*(\S+)\s+device\s*$') { $Matches[1] }
         }
     )
+    if ($online.Count -eq 0) {
+        Note "No online ADB devices yet. Probing local MuMu/emulator ADB ports..."
+        $null = Get-RuntimeValue -LookupArgs @("connect")
+        $deviceLines = @(& $Adb devices)
+        if ($LASTEXITCODE -ne 0) { Stop-Workflow "ADB device discovery failed." }
+        $online = @(
+            foreach ($line in $deviceLines) {
+                if ($line -match '^\s*(\S+)\s+device\s*$') { $Matches[1] }
+            }
+        )
+    }
     if ($online.Count -eq 0) {
         Note ($deviceLines -join [Environment]::NewLine)
         Stop-Workflow "No online ADB devices. Start MuMu, enable ADB debugging and wait for status 'device'."

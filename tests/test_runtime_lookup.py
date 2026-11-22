@@ -48,6 +48,13 @@ class RuntimeLookupTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             module.main(["play-account"])
 
+    def test_connect_command_returns_joined_serials(self):
+        import setup_env
+        import device_selector
+        with patch.object(setup_env, "find_adb", return_value="C:/adb.exe"), \
+             patch.object(device_selector, "ensure_online_serials", return_value=["127.0.0.1:16384"]):
+            self.assertEqual(module.resolve_value("connect"), "127.0.0.1:16384")
+
 
 if __name__ == "__main__":
     unittest.main()

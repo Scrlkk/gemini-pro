@@ -166,11 +166,15 @@ def warn(msg):
 def pick_device(preferred=None):
     """Select exactly one online Android device; respect an explicit --serial."""
     global SERIAL
+    from device_selector import EMULATOR_PORTS, _is_local_port_open, auto_select_device
+
     out = sh("devices")
     lines = [l for l in out.splitlines()[1:] if "\tdevice" in l]
     if not lines:
-        # When no device is online, probe common emulator ADB ports.
-        for port in ("16384", "7555", "16416", "62001", "21503"):
+        # When no device is online, probe listening local emulator ADB ports.
+        for port in EMULATOR_PORTS:
+            if not _is_local_port_open(port):
+                continue
             try:
                 sh("connect", f"127.0.0.1:{port}", timeout=10)
             except Exception:
@@ -186,7 +190,6 @@ def pick_device(preferred=None):
     if preferred and preferred not in online:
         sys.exit(f"❌ ADB device {preferred} is not online. Available: {', '.join(online)}")
     if not preferred and len(online) != 1:
-        from device_selector import auto_select_device
         selected = auto_select_device(ADB, serials=online)
         if not selected:
             sys.exit(f"❌ Multiple distinct Android devices: {', '.join(online)}. "
