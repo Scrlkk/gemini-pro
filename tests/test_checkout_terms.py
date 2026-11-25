@@ -11,6 +11,33 @@ spec.loader.exec_module(app)
 
 
 class CheckoutTests(unittest.TestCase):
+    def test_matching_checkout_account_allows_existing_price_and_duration_checks(self):
+        with patch.object(app, "ui_xml", return_value="screen"), \
+             patch.object(app, "nodes", return_value=[{
+                 "text": "Google AI Pro Subscribe Today US$0 12-month free trial Google Play account: selected@example.com",
+                 "desc": ""}]), \
+             patch.object(app, "tap_text", return_value=True) as tap, \
+             patch.object(app.time, "sleep"):
+            result = app.confirm_zero(wait=2, expected_plan="pro12",
+                                      expected_account="selected@example.com")
+        self.assertTrue(result["confirmed"])
+        tap.assert_called_once()
+
+    def test_checkout_requires_exact_visible_billing_account_before_subscribe(self):
+        for identity, expected in (("", "checkout_account_unverified"),
+                                   ("other@example.com", "checkout_account_mismatch"),
+                                   ("selected@example.com other@example.com", "checkout_account_mismatch")):
+            with self.subTest(identity=identity), \
+                 patch.object(app, "ui_xml", return_value="screen"), \
+                 patch.object(app, "nodes", return_value=[{
+                     "text": "Google AI Pro Subscribe Today US$0 12-month free trial " + identity,
+                     "desc": ""}]), \
+                 patch.object(app, "tap_text") as tap:
+                result = app.confirm_zero(wait=2, expected_plan="pro12",
+                                          expected_account="selected@example.com")
+                self.assertEqual(result["reason"], expected)
+                tap.assert_not_called()
+
     def test_future_renewal_price_does_not_mask_zero_due_today(self):
         result = app.assess_checkout_terms(
             "Google AI Pro Subscribe Today US$0.00 12-month free trial "
@@ -62,7 +89,8 @@ class CheckoutTests(unittest.TestCase):
         tapped.assert_not_called()
 
     def test_checkout_security_block_sets_distinct_status(self):
-        fr = {"launched": {"code": 0}, "offers": [{"id": "6months-eft", "micros": "0"}]}
+        fr = {"launched": {"code": 0}, "offers": [{"id": "6months-eft", "micros": "0"}],
+              "chosen_offer": {"id": "6months-eft"}}
         with patch.object(app, "current_play_account", return_value="test@example.com"), \
              patch.object(app, "launch_app", return_value=123), \
              patch.object(app, "run_trial", return_value=fr), \
@@ -126,7 +154,8 @@ class CheckoutTests(unittest.TestCase):
         self.assertEqual(out["reason"], "subscribe_button_not_found")
 
     def test_process_does_not_leave_checkout_when_unverified(self):
-        fr = {"launched": {"code": 0}, "offers": [{"id": "12months-eft", "micros": "0"}]}
+        fr = {"launched": {"code": 0}, "offers": [{"id": "12months-eft", "micros": "0"}],
+              "chosen_offer": {"id": "12months-eft"}}
         with patch.object(app, "current_play_account", return_value="test@example.com"), \
              patch.object(app, "launch_app", return_value=123), \
              patch.object(app, "run_trial", return_value=fr), \

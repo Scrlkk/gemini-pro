@@ -22,7 +22,9 @@ class DeviceSelectionTests(unittest.TestCase):
 
     def test_multiple_devices_require_serial(self):
         devices = "List of devices attached\nemulator-5554\tdevice\nemulator-5556\tdevice\n"
-        with patch.object(app, "sh", return_value=devices):
+        # Avoid depending on a live emulator on the CI host.
+        with patch.object(app, "sh", return_value=devices), \
+             patch("device_selector.adb_command", return_value=None):
             with self.assertRaises(SystemExit):
                 app.pick_device()
 

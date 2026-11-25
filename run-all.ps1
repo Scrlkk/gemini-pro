@@ -7,7 +7,7 @@
   original command-line interface. Original Steps 2-5 require explicit selection.
   -AllStages runs original Steps 2-5, with approval for each billable stage.
   -StartStep 3 with -AllStages skips Step 2 when a subscription is already active.
-  Individual -Step 2..5 commands do not require typed confirmations.
+  Individual -Step 2..4 commands do not require typed confirmations; CLI Step 5 does.
   -AllStages retains verification prompts between potentially billable steps.
   Step 5 is the author's optional additional offer and can be skipped.
   The original ultra0.py may automatically click Subscribe during a live stage.
@@ -27,7 +27,7 @@
 .EXAMPLE
   .\run-all.ps1 -AllStages                       # Original steps 2-5, with confirmation
 .EXAMPLE
-  .\run-all.ps1 -AllStages -Force                # Author's account-check bypass (unsafe)
+  .\run-all.ps1 -AllStages -Force                # Legacy flag; rejected for paid stages
 .EXAMPLE
   .\run-all.ps1 -AllStages -StartStep 3         # Resume without replaying Step 2
 #>
@@ -43,6 +43,10 @@ param(
     [switch]$Force,
     [ValidateSet("auto", "choose", "thread")]
     [string]$ActivityMethod = "auto",
+    [switch]$StartMumu,
+    [switch]$NoStartMumu,
+    [ValidateRange(0, 9999)]
+    [int]$MumuInstance,
     [switch]$SetupOnly,
     [switch]$ListOnly,
     [switch]$Tui,
@@ -53,7 +57,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 # Python stdout is piped into Windows PowerShell in Run-Command. Without a
-# UTF-8 child stream, non-ASCII status symbols (e.g. ✓ / ✅) raise
+# UTF-8 child stream, non-ASCII status symbols (e.g. checkmarks) raise
 # UnicodeEncodeError on Windows locales such as cp1252.
 # Set the encoding BEFORE any Python subprocess, for both CLI and TUI paths.
 $env:PYTHONIOENCODING = "utf-8:backslashreplace"
@@ -90,7 +94,18 @@ function Stage([string]$Message) {
 function Note([string]$Message) {
     if ($ShowDebug) { Write-Host ("    {0}" -f $Message) -ForegroundColor DarkGray }
 }
+function Protect-Diagnostic([string]$Message) {
+    $safe = $Message -replace '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', '[account hidden]'
+    if ($Serial) { $safe = $safe.Replace($Serial, '[device hidden]') }
+    return $safe
+}
 function Show-Status([string]$Label, [string]$Value, [string]$Color = "Green") {
+    # The private dashboard pipe needs exact identities for verification.
+    # Direct terminal output never displays them.
+    if ($env:EPLUS_TUI -ne "1") {
+        if ($Label -eq "Account") { $Value = "[account hidden]" }
+        if ($Label -eq "Device") { $Value = "Android connected (ADB)" }
+    }
     Write-Host ("  {0,-11} " -f $Label) -NoNewline -ForegroundColor Gray
     Write-Host $Value -ForegroundColor $Color
 }
@@ -100,22 +115,55 @@ function Stop-Workflow([string]$Reason) {
 function Run-Command([string]$Program, [string[]]$Arguments) {
     # Preserve real-time output for Android manual verification, but hide
     # routine Python/ADB diagnostics. All stdout remains in a local ignored log.
+    $billingSetupFailed = $false
     & $Program @Arguments | ForEach-Object {
         $line = [string]$_
-        if ($script:RunLog) { Add-Content -LiteralPath $script:RunLog -Value $line -Encoding UTF8 }
-        if ($ShowDebug) {
-            Write-Host $line -ForegroundColor DarkGray
+        if ($script:RunLog) { Add-Content -LiteralPath $script:RunLog -Value (Protect-Diagnostic $line) -Encoding UTF8 }
+        if ($line.Trim() -ceq "EPLUS_ISSUE:billing_module_setup_failed") {
+            $billingSetupFailed = $true
+        } elseif ($ShowDebug) {
+            Write-Host (Protect-Diagnostic $line) -ForegroundColor DarkGray
         } elseif ($line -match 'Action required:|Press Enter to continue') {
-            Write-Host ("    {0}" -f $line.Trim()) -ForegroundColor Yellow
+            Write-Host ("    {0}" -f (Protect-Diagnostic $line.Trim())) -ForegroundColor Yellow
+        } elseif ($env:EPLUS_TUI -eq "1") {
+            if ($line -match 'Subscribe was tapped, but the purchase is unverified') {
+                Write-Host "EPLUS_CHECKOUT_REVIEW:submitted"
+            } elseif ($line -match 'Checkout not confirmed; Google Play remains open for inspection') {
+                Write-Host "EPLUS_CHECKOUT_REVIEW:unconfirmed"
+            }
         }
     }
     if ($LASTEXITCODE -ne 0) {
+        if ($billingSetupFailed) { Stop-Workflow "Billing module setup failed" }
+        if ($LASTEXITCODE -eq 23) { Stop-Workflow "Android UI capture failed" }
         Stop-Workflow ("A tool failed (exit {0}). See local run log; do not retry checkout blindly." -f $LASTEXITCODE)
     }
 }
 function Get-RuntimeValue([string[]]$LookupArgs) {
-    $output = @(& $Python "scripts/runtime-lookup.py" @LookupArgs)
-    if ($LASTEXITCODE -ne 0) {
+    $isMumuStartup = $LookupArgs[0] -eq "start-mumu"
+    if ($isMumuStartup) {
+        # Capture the helper's explicitly tagged, safe recovery message.
+        $savedPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $output = @(& $Python "scripts/runtime-lookup.py" @LookupArgs 2>&1)
+            $lookupExit = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $savedPreference
+        }
+    } else {
+        $output = @(& $Python "scripts/runtime-lookup.py" @LookupArgs)
+        $lookupExit = $LASTEXITCODE
+    }
+    if ($lookupExit -ne 0) {
+        if ($lookupExit -eq 23) { Stop-Workflow "Android UI capture failed" }
+        if ($isMumuStartup) {
+            $recovery = $output | ForEach-Object { [string]$_ } | Where-Object { $_ -match '^MUMU_RECOVERY:[A-Za-z0-9_ .,;/-]+$' } | Select-Object -Last 1
+            if ($recovery) {
+                Write-Host ($recovery.Substring("MUMU_RECOVERY:".Length)) -ForegroundColor Yellow
+            }
+            Stop-Workflow "MuMu startup failed. Check the preceding recovery message or open the intended instance manually."
+        }
         Stop-Workflow "Runtime lookup failed. Verify the Python and ADB environment."
     }
     $resultLine = $output | Where-Object { $_ -match '^RUNTIME_RESULT:[A-Za-z0-9+/=]*$' } | Select-Object -Last 1
@@ -177,7 +225,10 @@ if ($PSBoundParameters.ContainsKey("StartStep") -and -not $AllStages) {
 if ($Tui -and $Cli) {
     Stop-Workflow "Choose -Tui or -Cli, not both."
 }
-$useTui = $Tui -or (-not $Cli -and -not $PSBoundParameters.ContainsKey("Step") -and
+if (($StartMumu -or $PSBoundParameters.ContainsKey("MumuInstance")) -and ($Tui -or $NoStartMumu -or $Serial)) {
+    Stop-Workflow "Choose either MuMu startup or an explicit serial; do not combine startup with -Tui or -NoStartMumu."
+}
+$useTui = $Tui -or (-not $Cli -and -not $StartMumu -and -not $PSBoundParameters.ContainsKey("MumuInstance") -and -not $PSBoundParameters.ContainsKey("Step") -and
                    -not $AllStages -and -not $SetupOnly -and -not $ListOnly -and -not $Help)
 if ($useTui) {
     if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
@@ -227,6 +278,14 @@ try {
     Run-Command $Adb @("version")
 
     Stage "Preflight: Identify Android device"
+    if ($StartMumu -or $PSBoundParameters.ContainsKey("MumuInstance")) {
+        $lookup = @("start-mumu")
+        if ($PSBoundParameters.ContainsKey("MumuInstance")) { $lookup += @("--vmindex", [string]$MumuInstance) }
+        $Serial = Get-RuntimeValue -LookupArgs $lookup
+        if (-not $Serial -or $Serial -notmatch '^127\.0\.0\.1:[0-9]+$') {
+            Stop-Workflow "MuMu startup failed. Open the intended instance manually."
+        }
+    }
     $deviceLines = @(& $Adb devices)
     if ($LASTEXITCODE -ne 0) { Stop-Workflow "ADB device discovery failed." }
     $online = @(
@@ -234,6 +293,28 @@ try {
             if ($line -match '^\s*(\S+)\s+device\s*$') { $Matches[1] }
         }
     )
+    if ($Serial -and $online -cnotcontains $Serial -and $Serial -match '^127\.0\.0\.1:[0-9]+$') {
+        # Reconnect only the explicitly requested local emulator transport.
+        $null = & $Adb connect $Serial 2>$null
+        $deviceLines = @(& $Adb devices)
+        if ($LASTEXITCODE -ne 0) { Stop-Workflow "ADB device discovery failed after reconnect." }
+        $online = @(
+            foreach ($line in $deviceLines) {
+                if ($line -match '^\s*(\S+)\s+device\s*$') { $Matches[1] }
+            }
+        )
+    }
+    if ($online.Count -eq 0 -and -not $Serial) {
+        Show-Status "Connection" "Trying local emulator ADB ports..."
+        $null = Get-RuntimeValue -LookupArgs @("connect-device")
+        $deviceLines = @(& $Adb devices)
+        if ($LASTEXITCODE -ne 0) { Stop-Workflow "ADB device discovery failed after reconnect." }
+        $online = @(
+            foreach ($line in $deviceLines) {
+                if ($line -match '^\s*(\S+)\s+device\s*$') { $Matches[1] }
+            }
+        )
+    }
     if ($online.Count -eq 0) {
         Note "No online ADB devices yet. Probing local MuMu/emulator ADB ports..."
         $null = Get-RuntimeValue -LookupArgs @("connect")
@@ -247,28 +328,29 @@ try {
     }
     if ($online.Count -eq 0) {
         Note ($deviceLines -join [Environment]::NewLine)
+        Note "No online Android transports."
         Stop-Workflow "No online ADB devices. Start MuMu, enable ADB debugging and wait for status 'device'."
     }
     if ($Serial) {
         if ($online -cnotcontains $Serial) {
-            Stop-Workflow ("Selected serial '{0}' not online. Online: {1}" -f $Serial, ($online -join ", "))
+            Stop-Workflow "Selected serial not online. Reconnect the intended device."
         }
     } elseif ($online.Count -eq 1) {
         $Serial = $online[0]
     } else {
-        Note ("Multiple ADB connections: {0}" -f ($online -join ", "))
+        Note ("Multiple ADB connections: {0}" -f $online.Count)
         Note "Identifying duplicate transports and checking Google One..."
         $candidate = Get-RuntimeValue -LookupArgs @("device")
         if ($candidate -and $online -ccontains $candidate) {
             $Serial = $candidate
-            Note ("Auto-selected Android device: {0}" -f $Serial)
+            Note "Auto-selected Android device."
         } else {
             Note "Multiple different devices are still eligible; explicit selection is required."
             if (-not $AllStages) {
                 Stop-Workflow "Cannot select a single Android device automatically. Rerun with -Serial <exact-adb-serial>; no checkout started."
             }
             for ($i = 0; $i -lt $online.Count; $i++) {
-                Note ("[{0}] {1}" -f ($i + 1), $online[$i])
+                Write-Host ("[{0}] Android device (match order in your local adb devices list)" -f ($i + 1))
             }
             $deviceAnswer = Read-Host "  Device number (0 to stop)"
             $deviceNumber = 0
@@ -283,7 +365,10 @@ try {
     $AndroidVersion = ((& $Adb -s $Serial shell getprop ro.build.version.release) | Out-String).Trim()
     $AndroidSdk = ((& $Adb -s $Serial shell getprop ro.build.version.sdk) | Out-String).Trim()
     $AndroidAbi = ((& $Adb -s $Serial shell getprop ro.product.cpu.abi) | Out-String).Trim()
-    Note ("Android {0} (SDK {1}), ABI {2}, activity lookup {3}" -f $AndroidVersion, $AndroidSdk, $AndroidAbi, $ActivityMethod)
+    if ($AndroidVersion -and $AndroidSdk -and $AndroidAbi) {
+        Show-Status "Android" ("{0} (SDK {1}), ABI {2}" -f $AndroidVersion, $AndroidSdk, $AndroidAbi)
+    }
+    Note ("Activity lookup: {0}" -f $ActivityMethod)
 
     Stage "Preflight: Verify required Android apps"
     foreach ($package in @("com.android.vending", "com.google.android.apps.subscriptions.red")) {
@@ -297,6 +382,7 @@ try {
     Stage "Original Step 0: Environment check"
     Note "The original ultra0.py may repair Frida and change emulator proxy/network settings."
     Run-Command $Python @("ultra0.py", "--check", "--serial", $Serial)
+    if ($env:EPLUS_TUI -eq "1") { Write-Host "EPLUS_STAGE_DONE:0" }
 
     if ($SetupOnly -or ($Step -eq 0 -and -not $AllStages)) {
         Note "Original Step 0 complete. No checkout or purchase requested."
@@ -328,9 +414,7 @@ try {
         Stop-Workflow "Invalid Play Store account returned by Step 1. Verify the Play Store profile."
     }
     if ($playAccount -and $listedAccount -and $playAccount -cne $listedAccount) {
-        $accountMismatch = ("Play Store account changed: preflight '{0}', Step 1 '{1}'. " +
-                            "Verify the Play Store profile before any checkout.")
-        Stop-Workflow ($accountMismatch -f $playAccount, $listedAccount)
+        Stop-Workflow "Play Store account changed between preflight and Step 1. Verify the Play Store profile before any checkout."
     }
     if (-not $playAccount -and $listedAccount) {
         $playAccount = $listedAccount
@@ -367,18 +451,13 @@ try {
     if ($AllStages) {
         Note "Choose: 1 = Continue | 2 = Skip | 0 = Stop."
     } else {
-        Note "Single-step mode: no console confirmations; the selected step may open and confirm a Google Play checkout."
+        Note "Single-step mode: the selected step may open Google Play checkout. Step 5 requires separate approval."
     }
 
     # Reuse the selected Play account. No repeated email input is required.
     if (-not $Email -and $playAccount) {
         $Email = $playAccount
-        Note ("Using detected Google Play account: {0}" -f $Email)
-    }
-    if (-not $Email -and $Force) {
-        # Mirrors the author's --account current@device --force when profile
-        # enumeration is unavailable. No additional account is added.
-        $Email = "current@device"
+        Note "Using detected Google Play account."
     }
     if (-not $Email) {
         if (-not $AllStages) {
@@ -391,20 +470,14 @@ try {
         Note "No valid email supplied; stopping before live billing."
         return
     }
+    if (-not $playAccount) {
+        Stop-Workflow "Cannot identify the active Google Play account. Select the intended account, then repeat Step 1."
+    }
+    if ($playAccount -cne $Email) {
+        Stop-Workflow "Play account mismatch. Select the correct Play Store account and repeat Step 1."
+    }
     if ($Force) {
-        Write-Warning "--force bypasses only the Play Store account check, NOT Google's eligibility or payment conditions."
-        Write-Warning ("Detected Play account: {0}; requested: {1}" -f $playAccount, $Email)
-        if ($AllStages) {
-            if (-not (Confirm-Exact "Use original --force for this Android account?" "FORCE")) {
-                return
-            }
-        } else {
-            Note "The -Force switch was explicitly supplied; no additional console confirmation in single-step mode."
-        }
-    } elseif (-not $playAccount -or $playAccount -cne $Email) {
-        $accountMismatch = ("Play account mismatch or unverified. Detected '{0}', expected '{1}'. " +
-                            "Check the Play Store profile before proceeding.")
-        Stop-Workflow ($accountMismatch -f $playAccount, $Email)
+        Stop-Workflow "-Force is not supported for paid stages. Remove it and verify the active account."
     }
 
     # Keep the original author's Pro 5 TB stage numbering and plan IDs.
@@ -472,15 +545,13 @@ try {
         }
         Note "Inspect today's checkout price, all future pricing phases and the next charge date."
         Note "A 0-price first phase is NOT proof of free-trial eligibility or stacking."
-        # Approve the main sequence once. Step 5 stays optional,
-        # and a standalone -Step N run still requires explicit permission.
-        if ($AllStages -and $stage.Number -eq 5) {
+        # Step 5 requires an explicit CLI confirmation or the dashboard approval.
+        if ($stage.Number -eq 5 -and ($AllStages -or $env:EPLUS_TUI -ne "1")) {
             if (-not (Confirm-Exact "Run this optional original live stage?" "RUN 5")) { break }
         }
 
         $args = @("ultra0.py", "--account", $Email, "--no-add", "--no-switch",
                   "--plan", $stage.Plan, "--serial", $Serial, "--activity-method", $ActivityMethod)
-        if ($Force) { $args += "--force" }
         if ($stage.Stack) { $args += "--stack" }
         Run-Command $Python $args
 

@@ -9,7 +9,7 @@ LOCALIZED = ("vi", "zh-CN", "ja", "ko", "es", "fr")
 TOPIC_PAGES = (
     "docs/README.md", "docs/SAFETY.md", "docs/INSTALLATION.md",
     "docs/USAGE.md", "docs/TROUBLESHOOTING.md", "docs/PROJECT.md",
-    "docs/MACOS-PREVIEW.md", "docs/DETAILED-GUIDE.md",
+    "docs/MACOS-PREVIEW.md", "docs/LINUX.md", "docs/DETAILED-GUIDE.md",
     "docs/ORIGINAL-STEPS.md", "docs/AUTHOR-NOTES.md",
     "docs/WINDOWS-SMOKE-TEST.md",
 )
@@ -38,6 +38,43 @@ class DocumentationNavigationTests(unittest.TestCase):
                 self.assertTrue((DOCS / "i18n" / f"README.{lang}.md").is_file())
         self.assertGreater((DOCS / "USAGE.md").stat().st_size, 3000)
 
+    def test_linux_docs_include_platform_and_adb_path(self):
+        english = (ROOT / "README.md").read_text(encoding="utf-8")
+        hub = (DOCS / "README.md").read_text(encoding="utf-8")
+        linux = (DOCS / "LINUX.md").read_text(encoding="utf-8")
+        self.assertIn("| Linux |", english)
+        self.assertIn("| Linux (Ubuntu x86_64) |", hub)
+        self.assertIn("ADB_PATH", linux)
+        self.assertNotIn("git switch feature", english)
+        for lang in LOCALIZED:
+            localized = (ROOT / f"README.{lang}.md").read_text(encoding="utf-8")
+            self.assertIn("| Linux |", localized)
+            self.assertNotIn("git switch feature", localized)
+
+    def test_linux_user_guides_clone_main_only(self):
+        guides = [ROOT / "README.md", DOCS / "LINUX.md"]
+        guides.extend(ROOT / f"README.{locale}.md" for locale in LOCALIZED)
+        for guide in guides:
+            with self.subTest(guide=guide.name):
+                body = guide.read_text(encoding="utf-8")
+                self.assertIn("git clone --branch main --single-branch", body)
+                self.assertNotIn("git switch feature", body)
+                self.assertNotIn("git switch --track origin/integration", body)
+
+    def test_mumu_startup_guidance_is_linked_from_usage(self):
+        usage = (DOCS / "USAGE.md").read_text(encoding="utf-8")
+        troubleshooting = (DOCS / "TROUBLESHOOTING.md").read_text(encoding="utf-8")
+        self.assertIn("(TROUBLESHOOTING.md)", usage)
+        self.assertIn("CLI Step 5 requires separate numbered confirmation.", usage)
+        self.assertNotIn("an explicitly selected single checkout stage does not require", usage)
+        self.assertIn("Start MuMu", troubleshooting)
+        self.assertIn("Startup failures restore the popup controls", troubleshooting)
+
+    def test_ui_capture_troubleshooting_has_safe_restart_guidance(self):
+        guide = (DOCS / "TROUBLESHOOTING.md").read_text(encoding="utf-8")
+        self.assertIn("Android UI capture failed / Segmentation fault", guide)
+        self.assertIn("No automatic paid-stage retry is performed", guide)
+
     def test_documentation_hub_references_every_topic(self):
         hub = (DOCS / "README.md").read_text(encoding="utf-8")
         self.assertIn("[!CAUTION]", hub)
@@ -55,7 +92,7 @@ class DocumentationNavigationTests(unittest.TestCase):
         locations = [ROOT / "README.md", ROOT / "README.en.md"]
         locations.extend(ROOT / f"README.{lang}.md" for lang in LOCALIZED)
         locations.extend(sorted(DOCS.rglob("*.md")))
-        locations.extend((ROOT / "CONTRIBUTING.md", ROOT / "AGENTS.md"))
+        locations.extend((ROOT / "CONTRIBUTING.md", ROOT / "CONTRIBUTORS.md", ROOT / "AGENTS.md"))
         for source in locations:
             text = source.read_text(encoding="utf-8")
             for target in MD_LINK.findall(text):
@@ -67,11 +104,14 @@ class DocumentationNavigationTests(unittest.TestCase):
                 with self.subTest(source=str(source.relative_to(ROOT)), link=relative):
                     self.assertTrue((source.parent / relative).is_file())
 
-    def test_windows_and_mac_installation_both_work_from_project_root(self):
+    def test_all_platform_installations_work_from_project_root(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("### Windows requirements", readme)
         self.assertIn("## macOS — Install and run", readme)
+        self.assertIn("## Linux — Install and run", readme)
+        self.assertIn("sh run-linux.sh", readme)
         self.assertEqual(readme.count("git clone https://github.com/hoangsvit/google-ai.git"), 2)
+        self.assertIn("git clone --branch main --single-branch https://github.com/hoangsvit/google-ai.git", readme)
         self.assertIn(".\\run-all.ps1", readme)
         self.assertIn("sh run-macos.sh", readme)
         self.assertIn("brew install android-platform-tools", readme)
@@ -89,13 +129,14 @@ class DocumentationNavigationTests(unittest.TestCase):
                 self.assertIn("sh run-macos.sh", text)
                 self.assertIn(".\\run-all.ps1", text)
                 self.assertEqual(text.count("git clone https://github.com/hoangsvit/google-ai.git"), 2)
+                self.assertIn("git clone --branch main --single-branch https://github.com/hoangsvit/google-ai.git", text)
                 self.assertNotIn("git switch dev", text)
 
     def test_user_install_guides_never_require_switching_to_dev(self):
         pages = [
             ROOT / "README.md", ROOT / "README.en.md",
             DOCS / "README.md", DOCS / "INSTALLATION.md",
-            DOCS / "MACOS-PREVIEW.md", DOCS / "TROUBLESHOOTING.md",
+            DOCS / "MACOS-PREVIEW.md", DOCS / "LINUX.md", DOCS / "TROUBLESHOOTING.md",
         ]
         pages.extend(ROOT / f"README.{lang}.md" for lang in LOCALIZED)
         pages.extend(DOCS / "i18n" / f"README.{lang}.md" for lang in LOCALIZED)
@@ -126,7 +167,7 @@ class DocumentationNavigationTests(unittest.TestCase):
         hub = (DOCS / "README.md").read_text(encoding="utf-8")
         mac_guide = (DOCS / "MACOS-PREVIEW.md").read_text(encoding="utf-8")
         win_guide = (DOCS / "INSTALLATION.md").read_text(encoding="utf-8")
-        self.assertIn("PowerShell is not required or used on macOS", overview)
+        self.assertIn("PowerShell is not required on macOS or Linux", overview)
         self.assertIn("Terminal (zsh/bash)", hub)
         self.assertIn("PowerShell 5.1+", hub)
         self.assertIn("sh run-macos.sh", hub)

@@ -1,7 +1,11 @@
 """macOS port tests. All Android/checkout interactions are mocked."""
 import base64
+import contextlib
+import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import time
@@ -13,6 +17,20 @@ from tui_core import command_for_step
 
 
 class MacStageAdapterTests(unittest.TestCase):
+    def setUp(self):
+        # Exercise macOS compatibility independently of the CI host OS.
+        platform_patcher = patch("macos_runner.sys.platform", "darwin")
+        platform_patcher.start()
+        self.addCleanup(platform_patcher.stop)
+
+    def test_android_details_query_uses_selected_device(self):
+        result = subprocess.CompletedProcess([], 0, "14\n34\narm64-v8a\n", "")
+        with patch("macos_runner.subprocess.run", return_value=result) as run:
+            with patch("builtins.print") as output:
+                macos_runner.show_android_details("/tools/adb", "emulator-5554")
+        self.assertEqual(run.call_args.args[0][:4], ["/tools/adb", "-s", "emulator-5554", "shell"])
+        output.assert_called_once_with("Android 14 (SDK 34), ABI arm64-v8a", flush=True)
+
     def test_six_stage_mapping_and_no_force(self):
         offers = {
             2: ("pro12", "12months-eft", False),
@@ -53,8 +71,15 @@ class MacStageAdapterTests(unittest.TestCase):
             self.assertIn("play-account", invoke.call_args.args[0])
             self.assertEqual(invoke.call_args.args[0][-2:], ["--serial", "device-1"])
 
+    def test_paid_stage_rejects_wrong_verified_device(self):
+        with patch("macos_runner.run_engine") as engine:
+            with self.assertRaisesRegex(RuntimeError, "device changed"):
+                macos_runner.run_stage(3, "device-b", {}, confirmed=True,
+                                       active_confirmed=True, expected_device="device-a")
+        engine.assert_not_called()
+
     def test_paid_stage_refuses_unconfirmed_or_wrong_account(self):
-        report = {"status": "listed", "offers": [{"id": "12months-eft", "micros": "0"}],
+        report = {"status": "listed", "offers": [{"product": "g1.2tb.ai.subs_variant", "id": "12months-eft", "micros": "0"}],
                   "detected_play_account": "alice@example.com"}
         with self.assertRaisesRegex(RuntimeError, "confirmations"):
             macos_runner.run_stage(2, "device-1", {})
@@ -65,7 +90,7 @@ class MacStageAdapterTests(unittest.TestCase):
                         macos_runner.run_stage(2, "device-1", {}, confirmed=True)
 
     def test_paid_stage_rejects_nonzero_offer(self):
-        report = {"status": "listed", "offers": [{"id": "12months-eft", "micros": "3000000"}],
+        report = {"status": "listed", "offers": [{"product": "g1.2tb.ai.subs_variant", "id": "12months-eft", "micros": "3000000"}],
                   "detected_play_account": "alice@example.com"}
         with patch("macos_runner.run_engine", return_value=0) as send:
             with patch("macos_runner.list_offers", return_value=report):
@@ -75,7 +100,7 @@ class MacStageAdapterTests(unittest.TestCase):
             self.assertEqual(send.call_count, 1)  # environment only; no checkout
 
     def test_paid_stage_invokes_original_engine_only_after_checks(self):
-        report = {"status": "listed", "offers": [{"id": "6months-eft", "micros": 0}],
+        report = {"status": "listed", "offers": [{"product": "g1.2tb.ai.subs_variant", "id": "6months-eft", "micros": 0}],
                   "detected_play_account": "alice@example.com"}
         with patch("macos_runner.run_engine", return_value=0) as send:
             with patch("macos_runner.list_offers", return_value=report):
@@ -91,6 +116,15 @@ class MacStageAdapterTests(unittest.TestCase):
             self.assertEqual(paid[paid.index("--account") + 1], "alice@example.com")
             with self.assertRaisesRegex(RuntimeError, "confirmations"):
                 macos_runner.run_stage(3, "device-1", {}, confirmed=True)
+
+    def test_tui_core_mac_passes_verified_device(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "macos_runner.py").write_text("# mock", encoding="utf-8")
+            with patch("tui_core.sys.platform", "darwin"):
+                command = command_for_step(3, root, account="alice@example.com", device="device-a")
+                self.assertEqual(command[command.index("--expected-device") + 1], "device-a")
+                self.assertEqual(command[command.index("--expected-account") + 1], "alice@example.com")
 
     def test_tui_core_mac_passes_explicit_checkout_approval(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -111,6 +145,22 @@ class MacStageAdapterTests(unittest.TestCase):
                 path.write_text(json.dumps({"status": "listed"}), encoding="utf-8")
                 with self.assertRaises(RuntimeError):
                     macos_runner.fresh_report("current.json", time.time_ns() + 1_000_000_000)
+
+    def test_macos_adapter_shows_friendly_error_and_private_tui_marker(self):
+        for tui_mode in (False, True):
+            with self.subTest(tui_mode=tui_mode):
+                output = io.StringIO()
+                errors = io.StringIO()
+                environment = {"EPLUS_TUI": "1"} if tui_mode else {"EPLUS_TUI": ""}
+                with patch.dict(os.environ, environment):
+                    with patch("macos_runner.preflight",
+                               side_effect=RuntimeError("No online Android device. Check adb devices.")):
+                        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                            self.assertEqual(macos_runner.main(["--step", "1"]), 1)
+                self.assertIn("Android device is not connected", errors.getvalue())
+                self.assertNotIn("RuntimeError:", errors.getvalue())
+                self.assertNotIn("EPLUS_ISSUE:", errors.getvalue())
+                self.assertEqual("EPLUS_ISSUE:device_missing" in output.getvalue(), tui_mode)
 
     def test_launcher_help_is_explicit_about_real_charges(self):
         src = (Path(__file__).resolve().parents[1] / "run-macos.sh").read_text(encoding="utf-8")
@@ -142,6 +192,7 @@ class MacTuiTests(unittest.IsolatedAsyncioTestCase):
                 app = GoogleAITUI(repo=Path(temp), selected_step=3)
             with patch("tui.subprocess.Popen") as child:
                 async with app.run_test(size=(100, 30)) as pilot:
+                    app._offer_check_ready = True
                     app._confirm_stage(3, False)
                     await pilot.pause()
                     self.assertIsInstance(app.screen, Approval)

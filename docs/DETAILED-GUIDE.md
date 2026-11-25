@@ -185,7 +185,7 @@ If a checkout is ever initiated, confirm subscription status, renewal date, amou
 - `setup_env.py`: Original setup helper.
 - `query_sku.py`: Direct product/offer query helper.
 - `assets/frida/billing.js`: Extracted Frida hook.
-- `assets/modules/module_521.b64`: Original embedded DEX archive as Base64.
+- `assets/modules/module_521.b64`: Original embedded DEX archive as Base64. During setup the toolkit normalizes permissions on the regular module file, including existing copies, and may use already-authorized Android root access if the ordinary shell cannot update the permissions. Symbolic links and non-regular paths are rejected rather than modified. If setup fails, see [Billing module setup failed in troubleshooting](TROUBLESHOOTING.md#troubleshooting-and-results).
 - `scripts/diagnose-activity.py`: Read-only ActivityThread probe.
 - `scripts/runtime-lookup.py`: ASCII-safe runtime discovery for Windows PowerShell.
 - `tests/`: Python tests and one dependency-free Node.js Frida JavaScript test.

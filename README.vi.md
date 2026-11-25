@@ -1,15 +1,15 @@
 # ePlus AI Toolkit — Tiếng Việt
 
-<!-- Source README.md git-blob: fd33739d3dfce6447a54761f8ad3f682634de172 -->
+<!-- Source README.md git-blob: 7954de699c157a7f0ebbbe70f3c0df2a09e3c7f3 -->
 
 [English](README.md) · **Tiếng Việt** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 
 > **Tài liệu gốc:** [README tiếng Anh](README.md). Nội dung bên dưới được diễn đạt bằng tiếng Việt để dễ theo dõi, đồng thời giữ nguyên các lệnh, điều kiện và lưu ý an toàn. Khi thông tin khác với chương trình thực tế, hãy ưu tiên kiểm tra mã nguồn và tài liệu gốc.
 
-**ePlus AI Toolkit** giúp bạn kiểm tra các ưu đãi Google AI Pro được hiển thị qua Google One và Google Play trên thiết bị Android. Công cụ chạy trên **Windows và macOS**: Windows sử dụng PowerShell, còn macOS sử dụng Terminal (zsh/bash). Cả giao diện Textual lẫn chế độ dòng lệnh đều dùng chung bộ xử lý Python, ADB và Frida.
+**ePlus AI Toolkit** giúp bạn kiểm tra các ưu đãi Google AI Pro được hiển thị qua Google One và Google Play trên thiết bị Android. Công cụ chạy trên **Windows, macOS và Linux**: Windows sử dụng PowerShell, còn macOS sử dụng Terminal (zsh/bash). Cả giao diện Textual lẫn chế độ dòng lệnh đều dùng chung bộ xử lý Python, ADB và Frida.
 
-![Giao diện ePlus AI Toolkit](https://github.com/user-attachments/assets/fc27278f-7833-4484-9770-33e46bf10005)
+![Giao diện ePlus AI Toolkit](images/terminal-ui-overview.png)
 
 > [!CAUTION]
 > **Đây không phải công cụ chính thức của Google và có thể phát sinh chi phí.** Ở các bước **2–5**, công cụ có thể mở trang thanh toán Google Play và tự nhấn **Subscribe**. Ưu đãi xuất hiện trong danh sách, mức giá đầu tiên bằng 0 hoặc thông báo đã gửi yêu cầu thanh toán **không có nghĩa là** bạn đủ điều kiện, được dùng miễn phí hay đã gia hạn thành công. Trước khi thực hiện, hãy kiểm tra đúng tài khoản, khoản tiền phải trả ngay, mức phí những kỳ sau và ngày gia hạn trong **Google Play**. Dừng công cụ không hủy được giao dịch đã gửi.
@@ -25,16 +25,16 @@ ePlus AI Toolkit là dự án độc lập, **không thuộc và không được
 
 **Chọn hướng dẫn phù hợp với hệ điều hành đang dùng.** Trên Mac, bạn không cần cài hay chạy PowerShell.
 
-| Thành phần | Windows | macOS |
-| --- | --- | --- |
-| Terminal | **PowerShell 5.1 trở lên** | **Terminal** với zsh hoặc bash |
-| Python | **3.10 trở lên**, dùng lệnh `python` | **3.10 trở lên**, dùng `python3`; công cụ tự tạo môi trường `.venv` |
-| Git | Git for Windows | Git từ Xcode Command Line Tools hoặc Homebrew |
-| Android | Thiết bị hoặc máy ảo đã bật root và ADB; hướng dẫn của dự án hỗ trợ **MuMuPlayer cho Windows** | Thiết bị Android có root hoặc máy ảo tương thích; **MuMuPlayer Pro cho Mac** chỉ phù hợp với Apple Silicon, không hỗ trợ Intel Mac |
-| Ứng dụng Android | Google Play Store và Google One, đã đăng nhập đúng tài khoản | Tương tự trên thiết bị Android bạn sử dụng |
-| ADB | Công cụ có thể tìm hoặc tải Android SDK Platform-Tools | Cần cài riêng, chẳng hạn `brew install android-platform-tools`; kiểm tra bằng `adb devices` |
-| Frida | **16.5.9**; trình thiết lập Windows có thể chuẩn bị khi cần | **16.5.9** trong `.venv`; vẫn phải kiểm tra khả năng tương thích với Android |
-| Lệnh khởi chạy | `.\run-all.ps1` | `sh run-macos.sh` hoặc `ePlus-AI-Toolkit.command` |
+| Thành phần | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| Terminal | **PowerShell 5.1 trở lên** | **Terminal** với zsh hoặc bash | **Terminal (sh/bash)**; không cần PowerShell |
+| Python | **3.10 trở lên**, dùng lệnh `python` | **3.10 trở lên**, dùng `python3`; công cụ tự tạo môi trường `.venv` | **3.10+** (`python3`), tạo `.venv` |
+| Git | Git for Windows | Git từ Xcode Command Line Tools hoặc Homebrew | Git từ trình quản lý gói |
+| Android | Thiết bị hoặc máy ảo đã bật root và ADB; hướng dẫn của dự án hỗ trợ **MuMuPlayer cho Windows** | Thiết bị Android có root hoặc máy ảo tương thích; **MuMuPlayer Pro cho Mac** chỉ phù hợp với Apple Silicon, không hỗ trợ Intel Mac | Điện thoại Android đã root qua USB, một kết nối ADB được cấp quyền |
+| Ứng dụng Android | Google Play Store và Google One, đã đăng nhập đúng tài khoản | Tương tự trên thiết bị Android bạn sử dụng | Google Play Store và Google One trên điện thoại |
+| ADB | Công cụ có thể tìm hoặc tải Android SDK Platform-Tools | Cần cài riêng, chẳng hạn `brew install android-platform-tools`; kiểm tra bằng `adb devices` | Cài Platform-Tools riêng; dùng `PATH` hoặc `ADB_PATH` |
+| Frida | **16.5.9**; trình thiết lập Windows có thể chuẩn bị khi cần | **16.5.9** trong `.venv`; vẫn phải kiểm tra khả năng tương thích với Android | **16.5.9**, chặn Android 16+ |
+| Lệnh khởi chạy | `.\run-all.ps1` | `sh run-macos.sh` hoặc `ePlus-AI-Toolkit.command` | `sh run-linux.sh` |
 
 Dù dùng Windows hay macOS, bạn vẫn cần một môi trường Android đã thiết lập đúng và có quyền truy cập. Mã nguồn hỗ trợ các bước 0–5 trên macOS, nhưng **chưa xác minh được quy trình thanh toán trên Mac/MuMu thực tế**. Xem hướng dẫn riêng cho [Windows](docs/INSTALLATION.md) và [macOS](docs/MACOS-PREVIEW.md).
 
@@ -107,19 +107,53 @@ sh run-macos.sh
 
 Lệnh `sh run-macos.sh` mở cùng giao diện Textual với **Steps 0–5**. `--check` kiểm tra môi trường (có thể thay đổi cấu hình), `--list` chỉ liệt kê ưu đãi, và `--step 2` chỉ mở TUI với Step 2 được chọn — **không tự thanh toán**. Các Steps 2–5 có thể phát sinh phí thật và yêu cầu xác nhận riêng. **Chưa kiểm thử giao dịch trên Mac/MuMu thực tế.** Xem [hướng dẫn Mac chi tiết](docs/MACOS-PREVIEW.md).
 
+## Linux — Cài đặt và khởi chạy
+
+Trên Ubuntu x86_64, hãy cài Git, Python 3.10 trở lên kèm `venv` và `pip`, cùng Android SDK Platform-Tools. Thêm `adb` vào `PATH` hoặc đặt `ADB_PATH` trỏ tới tệp thực thi. Kết nối qua USB với điện thoại Android đã root và có Google Play Store, Google One. Bật gỡ lỗi USB, mở khóa điện thoại và chấp nhận yêu cầu cấp quyền. ADB phải hiển thị một thiết bị ở trạng thái `device`.
+
+```sh
+git clone --branch main --single-branch https://github.com/hoangsvit/google-ai.git
+cd google-ai
+"${ADB_PATH:-adb}" devices
+sh run-linux.sh
+```
+
+**Dùng nhánh `main`:** Sau khi phần Linux được tích hợp, hãy clone trực tiếp `main` theo lệnh trên. Không cần chuyển sang nhánh nghiên cứu hay nhánh PR.
+
+Dùng phiên bản có tệp `run-linux.sh`. Tập lệnh mở giao diện và cài các phiên bản Textual và Frida 16.5.9 đã định sẵn vào `.venv` cục bộ. Nếu Ubuntu không tạo được môi trường, hãy cài `python3-venv` hoặc gói venv dành cho phiên bản Python đang dùng.
+
+- `sh run-linux.sh --check` chạy Bước 0 và có thể thay đổi cài đặt Android, Frida hoặc mạng.
+- `sh run-linux.sh --list` chạy Bước 1 để xem ưu đãi mà không yêu cầu thanh toán. Lệnh vẫn có thể thiết lập môi trường Android.
+- `sh run-linux.sh --step 3` mở phần nâng cao với Bước 3 đã chọn. `sh run-linux.sh --sequence` mở chế độ hướng dẫn từ Bước 2. Cả hai lệnh chỉ mở giao diện.
+
+**Android 16 trở lên:** Tập lệnh Linux dừng trước khi thiết lập thiết bị vì Frida 16.5.9 chưa hỗ trợ Android 16. Bạn vẫn có thể kiểm tra USB bằng **Diagnose Android connection**.
+
+**Các bước 2–5 có thể phát sinh khoản thanh toán thật trên Google Play.** Mỗi bước cần xác nhận riêng, tài khoản Play đang dùng đã được xác minh, và kết quả mới chứa đúng ưu đãi có kỳ đầu giá 0. Trước khi tiếp tục chuỗi, hãy xác minh gói thuê bao và ngày gia hạn trong Google Play. Luồng thanh toán trên Linux được kiểm thử bằng mô phỏng. Kiểm tra trọn quy trình trên thiết bị thật vẫn chưa hoàn tất. [Cài đặt Linux, xử lý lỗi USB và kiểm tra](docs/LINUX.md).
+
+
 ## 3. Sử dụng giao diện
 
 Nhấn **Check Device & Offers** để chạy **Step 1 — Available offers** và kiểm tra ưu đãi mà **không bắt đầu thanh toán**. Bạn có thể theo dõi tiến trình tại **Live Status**, chọn **Show technical details** để xem thông tin kỹ thuật và kiểm tra đúng tài khoản trong Google Play. Nếu 30 giây không có thông báo mới, công cụ sẽ cảnh báo; điều đó **chưa có nghĩa là chương trình đã bị treo**.
 
+Sau khi Step 1 trên giao diện xác minh thành công, cùng thao tác đó tự động chạy một lượt truy vấn siêu dữ liệu SKU giới hạn, chỉ đọc, dùng cơ chế xác định thiết bị hiện có. Lượt quét can thiệp vào tiến trình Android được phép truy cập, hiển thị các kỳ giá và trạng thái không trả về SKU hoặc không có ưu đãi; không mở thanh toán hay cấp quyền chạy thêm bước thanh toán. Cuộn danh sách để xem dữ liệu. Các điều khiển vẫn khóa đến khi quét xong; **Stop SKU scan** hoặc Exit yêu cầu hủy quét. Chuỗi hướng dẫn kết thúc ở Step 4; Step 5 tùy chọn chỉ xuất hiện nếu báo cáo Step 1 chính có đúng ưu đãi được hỗ trợ và vẫn cần xác nhận riêng. Xem [kiểm tra SKU](docs/SKU-EXPLORER.md).
+
 Step 1 không mua hàng, nhưng quá trình chuẩn bị vẫn có thể tải hoặc sửa ADB/Frida và thay đổi cấu hình máy ảo hoặc mạng. **Step 0 — Environment cũng có thể thay đổi môi trường trên máy**, nên không được xem là thao tác hoàn toàn chỉ đọc. Thanh bên hiển thị sáu bước; thông tin trong Android Device và Google Account được lấy từ kết quả thực tế, đồng thời che bớt dữ liệu nhận dạng tài khoản. Những terminal có hỗ trợ liên kết sẽ cho phép mở trang của tác giả gốc và người duy trì.
 
-Mục **Advanced: Run by step** gồm:
+Khi giao diện đang rảnh, công cụ kiểm tra các kết nối ADB hiện có khoảng 5 giây/lần. Nếu không tìm thấy ADB hoặc thiết bị Android, popup sẽ hướng dẫn cách xử lý. Công cụ tiếp tục kiểm tra và cập nhật trạng thái thiết bị; kết nối lại không tự mở khóa bước thanh toán. Việc theo dõi tạm dừng khi một bước đang chạy hoặc có hộp thoại khác. Công cụ không cài hay tự kết nối thiết bị ở chế độ nền, dù lệnh `adb devices` có thể khởi động máy chủ ADB trên máy tính.
+
+Trên Windows, khi chạy **Check Device & Offers**, công cụ tìm ADB và thử tải Android SDK Platform-Tools chính thức nếu cần. Quá trình tải hoặc cài có thể thất bại; hãy xem **Show technical details** khi gặp lỗi. Trên macOS, cài Platform-Tools theo hướng dẫn dành cho Mac. Người dùng cần tự cài và mở MuMu, bật root và ADB debugging, rồi đăng nhập Google Play và Google One.
+
+Step 2–5 chỉ được mở khóa khi lần kiểm tra Step 1 mới nhất trả về ưu đãi và xác nhận được tài khoản Play. Nếu có ưu đãi 12 tháng `12months-eft` với kỳ đầu giá 0, popup hoàn tất và màn hình chính sẽ hiển thị **Continue to Step 2**; nếu không, hãy xem danh sách ưu đãi. Nút này mở hộp xác nhận riêng, chưa chứng minh tài khoản đủ điều kiện hay chi phí cuối cùng. Sau khi gửi yêu cầu thanh toán, hãy kiểm tra gói, ngày gia hạn và khoản phí thực tế trong Google Play trước khi chọn **Verified in Google Play → Next**. Mỗi bước tiếp theo đều cần xác nhận riêng. Kiểm tra lại, bước thanh toán thất bại hoặc thay đổi thiết bị có thể khóa lại các bước thanh toán.
+
+Mục **Choose another step** gồm:
+
+Mặc định, công cụ chỉ chạy bước đã chọn. Trong **Choose another step**, chọn **More run options…** ở cuối danh sách bước để mở chế độ chạy tuần tự.
 
 | Chế độ | Chức năng |
 | --- | --- |
-| **One step only** | Chỉ chạy một bước được chọn từ 0 đến 5 |
-| **From selected step** | Bắt đầu chuỗi có hướng dẫn từ Step 2–5 |
-| **All: Steps 2–5** | Bắt đầu chuỗi từ Step 2; Step 5 là tùy chọn |
+| **Stop after this step** | Chỉ chạy một bước được chọn từ 0 đến 5 |
+| **Offer the next step** | Bắt đầu chuỗi có hướng dẫn từ Step 2–4 |
+| **Start at Step 2** | Bắt đầu chuỗi từ Step 2; Step 5 là tùy chọn |
 
 | Bước | Vai trò | Rủi ro |
 | --- | --- | --- |
@@ -148,6 +182,18 @@ Trước **mỗi bước thanh toán trên giao diện**, bạn phải xác nh�
 Khi một bước đang chạy, các nút **Check Device & Offers**, **Run** và các tùy chọn chế độ hoặc bước sẽ tạm khóa để tránh chạy nhiều thao tác cùng lúc. Bạn vẫn có thể xem trợ giúp và nhật ký kỹ thuật. Nút **Next** chỉ xuất hiện khi kết quả thanh toán có thể được kiểm tra trước khi tiếp tục; nếu xảy ra lỗi hoặc chưa rõ kết quả, công cụ không cho chuyển sang bước kế tiếp.
 
 **Dừng hoặc thoát:** Với Steps 0–1, bạn có thể yêu cầu dừng tiến trình trên máy. Với Steps 2–5, **Stop after this step** chỉ ngăn công cụ chạy tiếp bước sau, **không buộc dừng giao dịch đang xử lý**. Nếu nhấn **Q / Exit** trong lúc thanh toán, công cụ sẽ đợi bước hiện tại kết thúc rồi mới thoát. Phím **D** bật/tắt nhật ký kỹ thuật, còn **R** chạy theo chế độ đã chọn.
+
+### Thông tin thiết bị, tài khoản và lịch sử
+
+Ô Device hiển thị phiên bản Android, SDK, ABI và kết nối ADB khi đọc được; rê chuột để xem đầy đủ. **Choose account** nằm cạnh ô Account và liệt kê tài khoản đã đăng nhập trên Android. Chọn đúng hồ sơ trong cả Play Store và Google One rồi chạy lại Step 1. Công cụ dùng email hồ sơ đang hoạt động khi Play Store cung cấp thông tin rõ ràng.
+
+Khung thao tác vừa nội dung; **Live Status** dùng phần chiều cao còn lại và đặt hoạt động mới nhất ở đầu. **Show technical details** mở nhật ký tự cuộn theo dòng mới. Nút chính và **Run this step** hiển thị bước đang chạy cùng số giây. Trên Windows, Step 0 có dấu ✓ sau khi kiểm tra môi trường hoàn tất trong luồng kiểm tra ưu đãi. Khi chưa có kết quả mới đã xác minh, phần chọn bước hiện nút xanh **Check Device & Offers — Step 1**.
+
+**Recent history** lưu lần bắt đầu, kết quả và thao tác **Verified in Google Play → Next** tại `logs/stage-history/`. Khi mở lại, giao diện khôi phục lịch sử gần nhất; chọn tài khoản sẽ xem lịch sử riêng. **↺** đánh dấu bước từng chạy. Lịch sử chưa chứng minh gói đã kích hoạt và không tự mở khóa thanh toán. Mở lại toolkit hoặc đổi tài khoản cần chạy Step 1 mới. Các lượt trước khi bổ sung lưu lịch sử không có dữ liệu khôi phục.
+
+Popup mất kết nối có **Retry connection**, hiển thị **Retrying…** cùng số giây; **Got it** đóng popup. Trên Windows, nút thử nối lại máy ảo cục bộ; khi bắt đầu bước mà ADB chưa có thiết bị, công cụ cũng thử nối lại. Trong lượt tra cứu, nếu ứng dụng chưa khởi động, công cụ thử mở lại một lần. Nếu vẫn lỗi, đóng MuMu, mở lại, đợi Android khởi động xong rồi chạy Step 1. Google One được khởi động lại trước khi truy vấn; Play Store tiếp tục chạy nếu đã sẵn sàng. **Reload toolkit** nạp lại giao diện bằng code cục bộ khi rảnh và tạo phiên mới.
+
+Trước khi tự bấm **Subscribe**, màn hình thanh toán phải có đúng email dự kiến, tổng tiền hôm nay bằng 0 và đúng thời hạn dùng thử; ưu đãi được yêu cầu cũng phải khớp. Thiếu hoặc sai email sẽ dừng thao tác tự bấm để bạn kiểm tra. Mỗi bước thanh toán cần xác nhận riêng. Sau khi gửi yêu cầu, tự kiểm tra gói, ngày gia hạn và khoản phí trong Google Play. Nội dung nhắc ba lần xác minh thẻ nằm trong hộp xác nhận thanh toán.
 
 ## 4. PowerShell CLI (nâng cao)
 
@@ -211,6 +257,8 @@ Nhật ký chạy được lưu trong `logs/`, còn báo cáo nằm trong `ultra
 
 Nếu gặp vấn đề khi cài đặt hoặc sử dụng ePlus AI Toolkit, hãy truy cập [bài đăng hỗ trợ trên Telegram ePlus](https://t.me/eplus_news/29) để liên lạc, trao đổi kinh nghiệm và nhờ cộng đồng hỗ trợ. Với lỗi kỹ thuật có thể tái hiện, bạn cũng có thể [tạo GitHub Issue](https://github.com/hoangsvit/google-ai/issues). **Không chia sẻ mật khẩu, mã OTP/2FA, offer/purchase token, log chưa che thông tin cá nhân hoặc dữ liệu thẻ thanh toán.** Đây là hỗ trợ cộng đồng, không phải kênh hỗ trợ chính thức của Google.
 
+**Ủng hộ dự án bằng Telegram Boost:** Nếu ePlus AI Toolkit hữu ích với bạn và bạn có Telegram Premium, hãy cân nhắc dùng lượt Boost sẵn có để [Boost kênh @eplus_news](https://t.me/eplus_news?boost). Sự ủng hộ của bạn giúp mở khóa thêm tính năng cộng đồng trên kênh Telegram. Việc Boost hoàn toàn tự nguyện, không ảnh hưởng đến quyền sử dụng công cụ, các tính năng hay việc nhận hỗ trợ.
+
 **Không tham gia được chương trình Google AI Pro?** Bạn có thể tham khảo [Muse Invite Hub](https://github.com/ePlus-DEV/muse-invite-hub), một dự án khác của ePlus.DEV để [tìm kiếm hoặc chia sẻ mã mời Muse](https://muse.eplus.dev/). **Muse là dịch vụ riêng**, mã mời Muse **không kích hoạt và không thay thế** quyền đăng ký Google AI Pro. Mã mời có thể hết lượt hoặc bị giới hạn theo khu vực/tài khoản.
 
 ## Cấu trúc mã nguồn
@@ -235,6 +283,6 @@ Bạn cũng có thể tham khảo [cấu trúc dự án](docs/PROJECT.md), [các
 
 ## Ghi công
 
-**Tác giả gốc:** [@gylive](https://github.com/gylive) — [google-ultra](https://github.com/gylive/google-ultra). **Người duy trì:** [David Nguyen (@hoangsvit)](https://github.com/hoangsvit) / [ePlus.DEV](https://eplus.dev). Giữ nguyên thông báo MIT của tác giả gốc trong [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); giấy phép này không mặc nhiên áp dụng cho các đóng góp mới không liên quan. [Danh sách người đóng góp](https://github.com/hoangsvit/google-ai/graphs/contributors).
+Xin cảm ơn tác giả gốc, người duy trì và tất cả những người đóng góp. Xem [danh sách ghi công và đóng góp](CONTRIBUTORS.md). Thông báo MIT của tác giả gốc được giữ nguyên trong [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); thông báo này không mặc nhiên cấp phép cho các đóng góp mới không liên quan.
 
 [Trung tâm tài liệu](docs/README.md) · [Tài liệu tham khảo cũ (tiếng Việt)](docs/i18n/README.vi.md) · [An toàn thanh toán](docs/SAFETY.md)

@@ -34,7 +34,7 @@ The current stage contract is **0: Environment**, **1: Available offers**, **2: 
 4. Preserve account/device checks; never default to `--force` or `-Force`, bypass payment/security eligibility, or imply that a zero-priced first phase guarantees a free subscription.
 5. Preserve **Stop/Exit distinctions**: read-only steps 0–1 can request termination of their own subprocess tree; checkout steps 2–5 are **not** force-killed mid-transaction because their remote outcome could be unknown. Exit during checkout waits for the current step and must not start another. Avoid orphaned processes and killing unrelated processes.
 6. Do not print, commit, or expose Google emails, passwords, card details, billing/offer/purchase tokens, local device identifiers, or unredacted reports. Keep `logs/`, `ultra0-report/`, `accounts.txt` and local configuration out of commits. Mask or sanitize samples and screenshots.
-7. Keep attribution to upstream **[gylive/google-ultra](https://github.com/gylive/google-ultra)** and maintainer **[@hoangsvit](https://github.com/hoangsvit)**. Preserve the upstream MIT notice in `THIRD_PARTY_NOTICES.md`; do not assume that notice automatically licenses unrelated contributions.
+7. Keep attribution to upstream **[gylive/google-ultra](https://github.com/gylive/google-ultra)** and maintainer **[@hoangsvit](https://github.com/hoangsvit)**. Preserve the detailed credits in `CONTRIBUTORS.md` and link to it from every root README. Preserve the upstream MIT notice in `THIRD_PARTY_NOTICES.md`; do not assume that notice automatically licenses unrelated contributions.
 
 ## Textual UX contract
 
@@ -117,7 +117,7 @@ The UI is for everyday users, not just developers:
 
 ## Documentation source of truth
 
-Keep the original detailed README format for English and all six localized README files: disclaimer, Windows installation, macOS installation, Textual dashboard, advanced CLI, troubleshooting, support and credits. The default-branch installation commands must work without switching branches. Maintain topic-specific references in `docs/README.md`, `docs/INSTALLATION.md`, `docs/USAGE.md`, `docs/SAFETY.md`, `docs/TROUBLESHOOTING.md`, `docs/PROJECT.md` and `docs/MACOS-PREVIEW.md`. The historical localized guides under `docs/i18n/` remain as additional references.
+Keep the original detailed README format for English and all six localized README files: disclaimer, Windows installation, macOS installation, Textual dashboard, advanced CLI, troubleshooting, support and a Credits section linking to the canonical [CONTRIBUTORS.md](CONTRIBUTORS.md). Maintain detailed named attribution, contributor PR links and upstream provenance in that file rather than duplicating the list across locales. The default-branch installation commands must work without switching branches. Maintain topic-specific references in `docs/README.md`, `docs/INSTALLATION.md`, `docs/USAGE.md`, `docs/SAFETY.md`, `docs/TROUBLESHOOTING.md`, `docs/PROJECT.md` and `docs/MACOS-PREVIEW.md`. The historical localized guides under `docs/i18n/` remain as additional references.
 
 When moving or changing guidance, keep original safety, billing and credit statements accurate, fix relative links from the document's new directory, and update `tests/test_readme_locales.py` and `tests/test_docs_navigation.py`. Do not collapse the root README to a short landing page again, or claim Mac hardware compatibility based on CI.
 

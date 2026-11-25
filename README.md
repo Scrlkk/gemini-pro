@@ -2,9 +2,9 @@
 
 **Languages:** **English** · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
-A terminal toolkit for **Windows and macOS** to inspect Google AI Pro offers through Android, ADB, Frida and Google Play. The shared Textual dashboard uses a PowerShell/Python launcher on Windows and a native Python adapter on macOS.
+A terminal toolkit for **Windows, macOS and Linux** to inspect Google AI Pro offers through Android, ADB, Frida and Google Play. Windows uses a PowerShell/Python launcher; macOS and Linux use native shell launchers with a shared Python adapter.
 
-<img width="2048" height="1521" alt="image" src="https://github.com/user-attachments/assets/fc27278f-7833-4484-9770-33e46bf10005" />
+![ePlus AI Toolkit — full dashboard (110×35, Steps 0–5)](images/terminal-ui-overview.png)
 
 > [!CAUTION]
 > **Unofficial project. Potential billing charges.** Steps **2–5** can open a real Google Play checkout and may automatically tap **Subscribe**. An offer appearing in a list, a displayed first-phase price of zero, or a message indicating that the Subscribe action was attempted does **not** establish eligibility, an active subscription, a free subscription, or a changed renewal date. Verify the exact account, today's charge, future pricing and renewal date directly in Google Play before any checkout.
@@ -22,20 +22,20 @@ Read the **[full disclaimer](DISCLAIMER.md)** and [security precautions](SECURIT
 
 ## Install and prepare
 
-**Choose the instructions for your operating system.** Windows runs PowerShell; macOS runs Terminal with a POSIX shell (zsh/bash). **PowerShell is not required or used on macOS.**
+**Choose instructions for your operating system.** Windows runs PowerShell; macOS and Linux run native Terminal shells (zsh/bash or sh). **PowerShell is not required on macOS or Linux.**
 
-| Software / configuration | Windows | macOS |
-| --- | --- | --- |
-| Terminal and shell | **PowerShell 5.1+** | Built-in **Terminal**, using **zsh** or **bash**; **no PowerShell** |
-| Python | **3.10+** (command: `python`) | **3.10+** (command: `python3`); launcher creates a local `.venv` |
-| Git | Install Git for Windows | Install Git (Xcode Command Line Tools or Homebrew are options) |
-| Android connection | Rooted, ADB-enabled Android instance; **MuMuPlayer for Windows** is supported by the project workflow | Rooted Android device or compatible emulator; **MuMuPlayer Pro for Mac** is an Apple Silicon option, not an Intel Mac solution |
-| Android apps | Google Play Store and Google One, signed in to the intended account | Same; must be available on the chosen Android device/emulator |
-| ADB / Platform-Tools | Launcher can locate/download ADB when needed | Install separately, e.g. `brew install android-platform-tools`; verify with `adb devices` |
-| Frida | **16.5.9**, prepared by the Windows setup helper as needed | **16.5.9**, installed into the local `.venv` by the Mac launcher; Android-side compatibility must be checked |
-| Start command | `.\run-all.ps1` | `sh run-macos.sh` (or `ePlus-AI-Toolkit.command`) |
+| Software / configuration | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| Terminal and shell | **PowerShell 5.1+** | Built-in **Terminal**, using **zsh** or **bash**; **no PowerShell** | **Terminal (sh/bash)**; no PowerShell |
+| Python | **3.10+** (command: `python`) | **3.10+** (command: `python3`); launcher creates a local `.venv` | **3.10+** (`python3`), local `.venv` |
+| Git | Install Git for Windows | Install Git (Xcode Command Line Tools or Homebrew are options) | Git from package manager |
+| Android connection | Rooted, ADB-enabled Android instance; **MuMuPlayer for Windows** is supported by the project workflow | Rooted Android device or compatible emulator; **MuMuPlayer Pro for Mac** is an Apple Silicon option, not an Intel Mac solution | Rooted USB Android device, one authorized ADB connection |
+| Android apps | Google Play Store and Google One, signed in to the intended account | Same; must be available on the chosen Android device/emulator | Google Play Store and Google One on the phone |
+| ADB / Platform-Tools | Launcher can locate/download ADB when needed | Install separately, e.g. `brew install android-platform-tools`; verify with `adb devices` | Install Platform-Tools separately; `PATH` or `ADB_PATH` |
+| Frida | **16.5.9**, prepared by the Windows setup helper as needed | **16.5.9**, installed into the local `.venv` by the Mac launcher; Android-side compatibility must be checked | **16.5.9**, Android 16+ blocked |
+| Start command | `.\run-all.ps1` | `sh run-macos.sh` (or `ePlus-AI-Toolkit.command`) | `sh run-linux.sh` |
 
-Both platforms need an authorized, correctly configured Android environment. The macOS implementation covers Steps 0–5 in code, but real Mac/MuMu checkout compatibility has **not** been verified. See the dedicated [Windows guide](docs/INSTALLATION.md) and [macOS guide](docs/MACOS-PREVIEW.md).
+All three platforms need an authorized, correctly configured Android environment. macOS and Linux expose Steps 0–5, but real Mac/MuMu checkout and Linux rooted-device end-to-end tests remain **unverified**. See the [Windows guide](docs/INSTALLATION.md), [macOS guide](docs/MACOS-PREVIEW.md) and [Linux guide](docs/LINUX.md).
 
 ### Windows requirements
 
@@ -114,6 +114,28 @@ The launcher prepares Textual and Frida 16.5.9 in a local `.venv`. Optional comm
 The macOS adapter exposes **Steps 0–5**. **Steps 2–5 may initiate real Google Play charges** and require explicit confirmation. No real Mac/MuMu checkout or subscription activation has been validated. [Full macOS guide](docs/MACOS-PREVIEW.md).
 
 
+## Linux — Install and run
+
+On Ubuntu x86_64, install Git, Python 3.10+ with `venv` and `pip`, and Android SDK Platform-Tools. Put `adb` on `PATH` or set `ADB_PATH` to its executable. Connect a rooted Android phone with Google Play Store and Google One over USB. Enable USB debugging, unlock the phone, and approve the authorization prompt. Check that ADB reports one device with status `device`.
+
+```sh
+git clone --branch main --single-branch https://github.com/hoangsvit/google-ai.git
+cd google-ai
+"${ADB_PATH:-adb}" devices
+sh run-linux.sh
+```
+
+The `main` branch is the stable entrypoint for Linux after this integration merges. The launcher opens the dashboard and installs pinned Textual and Frida 16.5.9 dependencies into a local `.venv`. If Ubuntu cannot create that environment, install `python3-venv` or the venv package for your Python version.
+
+- `sh run-linux.sh --check` runs Step 0, which can modify Android, Frida or network settings.
+- `sh run-linux.sh --list` runs Step 1 to list offers without requesting checkout. It can also prepare the Android environment.
+- `sh run-linux.sh --step 3` opens Advanced controls with Step 3 selected. `sh run-linux.sh --sequence` opens guided controls starting at Step 2. Neither starts a stage on launch.
+
+**Android 16 and later:** The Linux launcher stops before device setup because pinned Frida 16.5.9 predates Android 16 support. **Diagnose Android connection** remains available for USB checks.
+
+**Steps 2–5 can incur real Google Play charges.** Each requires separate approval, a verified current Play account and a fresh exact-match offer with a zero-priced first phase. Guided continuation requires verifying the subscription and renewal date in Google Play. Linux checkout coverage uses mocks, and an end-to-end device check is pending. [Linux setup, USB troubleshooting and verification](docs/LINUX.md).
+
+
 ## Use the dashboard (recommended)
 
 ### Start with Check Device & Offers
@@ -121,19 +143,39 @@ The macOS adapter exposes **Steps 0–5**. **Steps 2–5 may initiate real Googl
 1. Click **Check Device & Offers** on the welcome screen. It invokes **Step 1 — Available offers**, intended to *list* offers rather than initiate checkout.
 2. Watch **Live Status** for the stage, elapsed time, current activity and result. **Show technical details** reveals execution output. A warning after 30 seconds without new output indicates inactivity, **not proof of a hang**.
 3. Check the account and offer information on the Android screen. A listed offer is **not** a guarantee of eligibility or a successful subscription.
-4. Expand **Advanced: Run by step** only when you deliberately need to select a different stage.
+4. Expand **Choose another step** only when you deliberately need to select a different stage.
+
+After a verified dashboard Step 1, the same action automatically runs a bounded, read-only SKU metadata scan using the existing device mapping. The scan instruments the authorized Android process, displays observed pricing phases and missing/no-offer statuses, and never starts checkout or authorizes a new paid step. Scroll the offer list to inspect metadata. Controls stay locked until the scan completes; **Stop SKU scan** or Exit requests cancellation. Guided checkout ends at Step 4; optional Step 5 requires the exact supported offer in the primary Step 1 report and separate approval. See [SKU inspection](docs/SKU-EXPLORER.md).
+
+While the dashboard is idle, it checks existing ADB connections about every five seconds. If ADB or Android is unavailable, a popup explains what to check. It checks again automatically and updates the device status; reconnecting alone does not unlock paid steps. Monitoring pauses during a running step and other dialogs. It does not install or connect devices in the background, though `adb devices` may start the local ADB server.
+
+On Windows, **Check Device & Offers** looks for ADB and, if necessary, attempts to download official Android SDK Platform-Tools. Downloads or installation can fail; check **Show technical details** if they do. On macOS, install Platform-Tools following the Mac instructions. Install and start MuMu separately, enable root and ADB debugging, and sign in to Google Play and Google One.
+
+Steps 2–5 stay locked until a fresh Step 1 check returns offers and verifies the Play account. If the 12-month offer `12months-eft` has a zero-priced first phase, the completion popup and main screen show **Continue to Step 2**. Otherwise, review the listed offers. The button opens a separate approval; it does not prove eligibility or final cost. After checkout, verify the actual subscription, renewal date and charges in Google Play before choosing **Verified in Google Play → Next**. Each later stage requires its own approval. A new check, failed paid stage or device change can lock the paid steps again.
 
 **Important distinction:** Step 1 does not initiate a purchase, but underlying environment preflight can still install or repair ADB/Frida and change emulator/network settings. **Step 0 — Environment** is a setup/diagnostics stage, not a purchase-free guarantee of zero local side effects.
 
-The sidebar lists the six stages. Android Device / Google Account cards update from observed output; account identifiers are masked. Original-author and maintainer credits link to their GitHub profiles in supported terminals.
+The sidebar lists Steps 0–4 and the supported optional Step 5 when observed. Android Device / Google Account cards update from observed output; account identifiers are masked. Original-author and maintainer credits link to their GitHub profiles in supported terminals.
 
-### Advanced run modes
+The Device card shows the Android release, SDK, CPU ABI and ADB transport when read; hover for full details. **Choose account**, beside the Account card, lists signed-in Android account candidates. Select the intended profile in both Play Store and Google One, then repeat Step 1. When Play Store exposes an explicit active-profile email, the toolkit can distinguish it from other signed-in accounts.
+
+The action panel fits its controls and **Live Status** uses the remaining height, with the latest activity first. **Show technical details** opens a log that follows new output. Both the main button and **Run this step** show the running step and elapsed seconds. On Windows, Step 0 receives a checkmark once its environment check completes within the offer-check flow. If a paid step lacks a fresh verified check, the green **Check Device & Offers — Step 1** button appears in step selection.
+
+**Recent history** saves stage starts, results and the user's **Verified in Google Play → Next** action locally under `logs/stage-history/`. Startup restores the latest saved history; selecting an account loads its own history. **↺** marks a previously attempted step. History alone cannot verify a subscription or unlock checkout. A fresh Step 1 check is required after reopening the toolkit or changing accounts. Runs before history recording was added are unavailable.
+
+**Retry connection** in the disconnected-device popup shows **Retrying…** and elapsed seconds. On Windows it tries the existing local emulator connection routine; Windows stages also attempt reconnection when no ADB device is online. **Got it** dismisses the popup. During read-only checks, a failed app startup gets one restart attempt. If recovery fails, close and reopen MuMu, wait for Android to boot and repeat Step 1. The engine restarts Google One before querying offers; Play Store stays running when already available. **Reload toolkit** restarts the idle dashboard with local code and begins a new session.
+
+Before automatically tapping **Subscribe**, checkout must show exactly the expected email, today's zero total and the expected trial duration, with the requested offer already matched. Missing or different checkout accounts stop the automatic tap and require manual review. The submitted checkout still needs independent subscription, renewal-date and charge verification in Google Play. Each paid stage requires its own approval. The three-card-event reminder appears in the payment approvals.
+
+### Additional run options
+
+By default, only the selected step runs. In **Choose another step**, select **More run options…** at the bottom of the step dropdown to show guided-sequence modes.
 
 | Mode | Behavior |
 | --- | --- |
-| **One step only** | Runs only the selected Step **0–5**. |
-| **From selected step** | Begins a guided checkout sequence at the chosen Step **2–5**, without replaying earlier checkout steps. |
-| **All: Steps 2–5** | Begins the guided checkout sequence at **Step 2**. Step **5** is optional. |
+| **Stop after this step** | Runs only the selected Step **0–5**. |
+| **Offer the next step** | Begins a guided checkout sequence at the chosen Step **2–4**, without replaying earlier checkout steps; ends at Step 4. |
+| **Start at Step 2** | Begins the guided checkout sequence at **Step 2**. Step **5** is optional. |
 
 **Reported 24-month example (subject to Google Play confirmation):**
 
@@ -163,7 +205,7 @@ If Google Play already shows an active subscription, do **not** repeat Step 2. T
 
 While a stage is running, **Check Device & Offers**, Run, Run mode and Step selection are locked so another stage cannot be started. Help and technical details remain accessible.
 
-- **Stop check (Steps 0–1):** requests cancellation of the local process tree. Cancellation can fail if a child process is stuck; inspect technical details.
+- **Stop check (Steps 0–1), including Stop SKU scan:** requests cancellation of the local process tree. Cancellation can fail if a child process is stuck; inspect technical details.
 - **Stop after this step (Steps 2–5):** prevents further stages, but **does not force-kill a checkout in progress**. The remote payment outcome could otherwise become unknown.
 - **Exit toolkit / Q:** exits immediately while idle; during Steps 0–1 it requests cancellation and exits afterward, and during Steps 2–5 it queues exit after the current stage.
 - **D** toggles technical details; **R** uses the selected advanced run mode. A **Next** button is available only for a reviewable checkout outcome in a guided sequence.
@@ -205,7 +247,7 @@ To use the original **CLI** guided sequence:
 .\run-all.ps1 -AllStages -StartStep 3
 ```
 
-The CLI performs its environment/offer checks and then proceeds through the original subscription stages, requesting numbered approvals between potentially billable operations (**1 = Continue, 2 = End run, 0 = Stop**). This differs from **All: Steps 2–5** on the TUI, which begins its guided sequence at Step 2. Starting the CLI sequence at Step 3 must only follow independent verification of an existing plan; it does not prove any prior extension succeeded.
+The CLI performs its environment/offer checks and then proceeds through the original subscription stages, requesting numbered approvals between potentially billable operations (**1 = Continue, 2 = End run, 0 = Stop**). This differs from **Start at Step 2** on the TUI, which begins its guided sequence at Step 2. Starting the CLI sequence at Step 3 must only follow independent verification of an existing plan; it does not prove any prior extension succeeded.
 
 Optional parameters:
 
@@ -231,22 +273,25 @@ Only use a `-Serial` observed through ADB. `-Email` constrains the account expec
 
 Verify subscription, payment amount, currency and renewal terms under **[Google Play Subscriptions](https://play.google.com/store/account/subscriptions)**. For developer-facing status codes and advanced platform/Frida problems, see [Detailed setup and troubleshooting](docs/DETAILED-GUIDE.md).
 
-**Platform support:** Windows and macOS use separate launchers. The macOS port has not been validated with a real Mac/MuMu or Google Play transaction; see [macOS guide](docs/MACOS-PREVIEW.md).
+**Platform support:** Windows, macOS and Linux have separate launchers. Real macOS/MuMu checkout and Linux rooted-device end-to-end validation remain pending; see the [macOS guide](docs/MACOS-PREVIEW.md) and [Linux guide](docs/LINUX.md).
 
 ## Community support and related projects
 
 If you need help installing or using ePlus AI Toolkit, see the [ePlus Telegram support/discussion post](https://t.me/eplus_news/29) to get in touch and exchange troubleshooting tips with the community. You can also [open a GitHub Issue](https://github.com/hoangsvit/google-ai/issues) for reproducible bugs. **Never post passwords, 2FA codes, purchase/offer tokens, full unredacted logs, or payment-card details.** Community support is not an official Google support channel.
 
+**Support the project with Telegram Boosts:** If ePlus AI Toolkit has been helpful and you have Telegram Premium, consider using an available boost to [boost @eplus_news](https://t.me/eplus_news?boost). Your support helps unlock more community features on our Telegram channel. Boosting is entirely optional and does not affect toolkit access, features or support.
+
 **Can't access the Google AI Pro offer?** You may also explore [Muse Invite Hub](https://github.com/ePlus-DEV/muse-invite-hub) ([browse or share Muse invite codes](https://muse.eplus.dev/)), another ePlus.DEV community project. Muse invite codes are for a **separate service**, are not a substitute for Google AI Pro subscriptions, and do **not** unlock or guarantee Google AI Pro access. Muse code availability and eligibility may vary.
 
 ## Repository structure
 
-Active launchers and the Python modules they invoke stay at the repository root. **Use `run-all.ps1` on Windows or `run-macos.sh` on macOS.**
+Active launchers and the Python modules they invoke stay at the repository root. **Use `run-all.ps1` on Windows, `run-macos.sh` on macOS or `run-linux.sh` on Linux.**
 
 | Location | Purpose |
 | --- | --- |
 | `run-all.ps1` | Windows entrypoint (Textual dashboard and guided CLI) |
-| `run-macos.sh`, `ePlus-AI-Toolkit.command`, `macos_runner.py` | macOS launcher and adapter (Steps 0–5; real-device checkout not validated) |
+| `run-macos.sh`, `ePlus-AI-Toolkit.command`, `macos_runner.py` | macOS launcher and shared native adapter (Steps 0–5; checkout not hardware-validated) |
+| `run-linux.sh` | Ubuntu x86_64 launcher (Steps 0–5, rooted USB Android; live-device tests pending) |
 | `tui.py`, `tui_core.py`, `ultra0.py`, `setup_env.py`, `device_selector.py`, `query_sku.py` | Active Python runtime and supporting tools; kept in place for compatibility |
 | [`tools/windows/`](tools/windows/README.md) | Optional manual Windows setup shortcut; not required for normal launch |
 | [`legacy/windows/`](legacy/windows/README.md) | Historical batch shortcuts; some bypass account checks with `--force` and may initiate a **real charge**. Use the maintained launcher instead |
@@ -258,6 +303,7 @@ Active launchers and the Python modules they invoke stay at the repository root.
 - [Documentation hub](docs/README.md)
 - [Repository structure and maintenance](docs/PROJECT.md)
 - [Dashboard usage & PowerShell CLI](docs/USAGE.md)
+- [Linux installation, prerequisites and limitations](docs/LINUX.md)
 - [Billing safety](docs/SAFETY.md)
 
 - [Install guide — GitHub Wiki](https://github.com/hoangsvit/google-ai/wiki/Install)
@@ -272,8 +318,6 @@ GitHub Actions checks Python, PowerShell, Textual and mocked Frida/Billing behav
 
 ## Credits
 
-- **Original author:** [@gylive](https://github.com/gylive) — upstream [google-ultra](https://github.com/gylive/google-ultra), including the original Python/ADB/Frida/Google Play approach.
-- **Maintainer:** [David Nguyen (@hoangsvit)](https://github.com/hoangsvit) / [ePlus.DEV](https://eplus.dev) — Windows/MuMu adaptation, terminal UI, compatibility fixes, tests and documentation.
-- [Community contributors](https://github.com/hoangsvit/google-ai/graphs/contributors)
+Thank you to the original author, maintainer and everyone who has contributed. See [contributors and credits](CONTRIBUTORS.md) for the full acknowledgements.
 
 The upstream MIT notice is retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); that notice does not independently license unrelated new contributions.

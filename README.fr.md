@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — Français
 
-<!-- Source README.md git-blob: fd33739d3dfce6447a54761f8ad3f682634de172 -->
+<!-- Source README.md git-blob: 7954de699c157a7f0ebbbe70f3c0df2a09e3c7f3 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · **Français**
 
@@ -8,9 +8,9 @@
 
 > **Document de référence :** [README original en anglais](README.md). Cette version est rédigée en français pour faciliter la lecture, tout en conservant les commandes, les limites et les avertissements du projet. En cas de doute, reportez-vous au code et à la documentation d'origine.
 
-**ePlus AI Toolkit** permet de consulter les offres Google AI Pro accessibles via Google One et Google Play sur un appareil Android. L'outil fonctionne sous **Windows et macOS** : vous le lancez depuis PowerShell sur Windows, ou Terminal (zsh/bash) sur Mac. L'interface Textual et les commandes utilisent le même moteur Python, ADB et Frida.
+**ePlus AI Toolkit** permet de consulter les offres Google AI Pro accessibles via Google One et Google Play sur un appareil Android. L'outil fonctionne sous **Windows, macOS et Linux** : vous le lancez depuis PowerShell sur Windows, ou Terminal (zsh/bash) sur Mac. L'interface Textual et les commandes utilisent le même moteur Python, ADB et Frida.
 
-![Interface ePlus AI Toolkit](https://github.com/user-attachments/assets/fc27278f-7833-4484-9770-33e46bf10005)
+![Interface ePlus AI Toolkit](images/terminal-ui-overview.png)
 
 > [!CAUTION]
 > **Outil non officiel ; des frais réels peuvent être facturés.** Les **étapes 2 à 5** peuvent ouvrir un véritable paiement Google Play et appuyer automatiquement sur **Subscribe (S'abonner)**. L'affichage d'une offre, d'un prix initial nul ou d'un message indiquant qu'un paiement a été demandé **ne prouve pas** l'éligibilité, la gratuité, l'activation ni la prolongation de l'abonnement. Avant toute opération, vérifiez dans Google Play le compte, le montant dû aujourd'hui, le prix de renouvellement et la date de facturation. Arrêter l'outil n'annule pas une transaction déjà envoyée.
@@ -26,16 +26,16 @@ Ce projet est **indépendant, sans affiliation, parrainage ni approbation offici
 
 **Suivez les instructions correspondant à votre système.** Sur Mac, vous n'avez pas besoin d'installer PowerShell.
 
-| Élément | Windows | macOS |
-| --- | --- | --- |
-| Terminal | **PowerShell 5.1 ou version ultérieure** | **Terminal**, avec zsh ou bash |
-| Python | **3.10 ou version ultérieure** (commande `python`) | **3.10 ou version ultérieure** (`python3`) ; création d'un environnement local `.venv` |
-| Git | Git pour Windows | Git via Xcode Command Line Tools ou Homebrew |
-| Android | Appareil ou émulateur rooté avec ADB ; la procédure Windows prend en charge **MuMuPlayer** | Android rooté ou émulateur compatible ; **MuMuPlayer Pro pour Mac** est une option Apple Silicon, pas Intel |
-| Applications | Google Play Store et Google One, connectés au compte à vérifier | Ces mêmes applications sur l'appareil Android choisi |
-| ADB | L'outil peut localiser ou télécharger Android SDK Platform-Tools | Installation séparée, par exemple `brew install android-platform-tools` ; vérification avec `adb devices` |
-| Frida | **16.5.9**, préparée si nécessaire sous Windows | **16.5.9** dans `.venv` ; compatibilité Android à vérifier |
-| Démarrage | `.\run-all.ps1` | `sh run-macos.sh` ou `ePlus-AI-Toolkit.command` |
+| Élément | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| Terminal | **PowerShell 5.1 ou version ultérieure** | **Terminal**, avec zsh ou bash | **Terminal (sh/bash)**, sans PowerShell |
+| Python | **3.10 ou version ultérieure** (commande `python`) | **3.10 ou version ultérieure** (`python3`) ; création d'un environnement local `.venv` | **3.10+** (`python3`), crée `.venv` |
+| Git | Git pour Windows | Git via Xcode Command Line Tools ou Homebrew | Git via le gestionnaire de paquets |
+| Android | Appareil ou émulateur rooté avec ADB ; la procédure Windows prend en charge **MuMuPlayer** | Android rooté ou émulateur compatible ; **MuMuPlayer Pro pour Mac** est une option Apple Silicon, pas Intel | Téléphone Android rooté par USB, un seul appareil ADB autorisé |
+| Applications | Google Play Store et Google One, connectés au compte à vérifier | Ces mêmes applications sur l'appareil Android choisi | Google Play Store et Google One sur le téléphone |
+| ADB | L'outil peut localiser ou télécharger Android SDK Platform-Tools | Installation séparée, par exemple `brew install android-platform-tools` ; vérification avec `adb devices` | Platform-Tools séparément ; `PATH` ou `ADB_PATH` |
+| Frida | **16.5.9**, préparée si nécessaire sous Windows | **16.5.9** dans `.venv` ; compatibilité Android à vérifier | **16.5.9**, Android 16+ bloqué |
+| Démarrage | `.\run-all.ps1` | `sh run-macos.sh` ou `ePlus-AI-Toolkit.command` | `sh run-linux.sh` |
 
 Les deux systèmes nécessitent un environnement Android correctement configuré et auquel vous avez le droit d'accéder. Le code macOS couvre les étapes 0–5, mais **aucun paiement réel sur Mac/MuMu n'a encore été validé**. Consultez les guides [Windows](docs/INSTALLATION.md) et [macOS](docs/MACOS-PREVIEW.md).
 
@@ -106,6 +106,30 @@ sh run-macos.sh
 
 `sh run-macos.sh` ouvre l'interface Textual avec les **étapes 0–5**. `--check` contrôle l'environnement (et peut modifier les réglages), `--list` consulte seulement les offres, et `--step 2` présélectionne l'étape **sans payer automatiquement**. Les étapes 2–5 peuvent entraîner de vrais frais et nécessitent une confirmation individuelle. **Les paiements sur un vrai Mac/MuMu restent non vérifiés.** Consultez le [guide Mac détaillé](docs/MACOS-PREVIEW.md).
 
+## Linux — Installation et démarrage
+
+Sous Ubuntu x86_64, installez Git, Python 3.10 ou une version ultérieure avec `venv` et `pip`, ainsi qu’Android SDK Platform-Tools. Ajoutez `adb` au `PATH` ou indiquez le chemin de l’exécutable dans `ADB_PATH`. Branchez en USB un téléphone Android rooté équipé du Google Play Store et de Google One. Activez le débogage USB, déverrouillez le téléphone et autorisez la connexion. ADB doit afficher un seul appareil à l’état `device`.
+
+```sh
+git clone --branch main --single-branch https://github.com/hoangsvit/google-ai.git
+cd google-ai
+"${ADB_PATH:-adb}" devices
+sh run-linux.sh
+```
+
+**Utilisez la branche `main` :** Après l'intégration Linux, clonez directement `main` avec la commande ci-dessus. Il n'est pas nécessaire de passer à une branche de développement ou de PR.
+
+Utilisez une version qui contient `run-linux.sh`. Le script ouvre l’interface et installe les versions fixées de Textual et de Frida 16.5.9 dans un environnement local `.venv`. Si Ubuntu ne parvient pas à créer cet environnement, installez `python3-venv` ou le paquet venv correspondant à votre version de Python.
+
+- `sh run-linux.sh --check` exécute l’étape 0 et peut modifier les réglages d’Android, de Frida ou du réseau.
+- `sh run-linux.sh --list` exécute l’étape 1 pour afficher les offres sans lancer de paiement. Cette commande peut aussi préparer l’environnement Android.
+- `sh run-linux.sh --step 3` ouvre les commandes avancées avec l’étape 3 sélectionnée. `sh run-linux.sh --sequence` ouvre le mode guidé à partir de l’étape 2. Aucune des deux commandes ne lance d’étape automatiquement.
+
+**Android 16 et versions ultérieures.** Le script Linux s’arrête avant de configurer l’appareil, car Frida 16.5.9 est antérieur à la prise en charge d’Android 16. **Diagnose Android connection** permet toujours de vérifier la connexion USB.
+
+**Les étapes 2–5 peuvent entraîner de vrais prélèvements sur Google Play.** Pour chacune, il faut une confirmation distincte, vérifier le compte Play actif et obtenir un résultat récent qui correspond exactement à l’offre dont la première période coûte zéro. Avant de poursuivre, vérifiez l’abonnement et la date de renouvellement dans Google Play. Les paiements sous Linux sont testés par simulation. La validation complète sur un appareil réel reste à faire. [Installation sous Linux, dépannage USB et vérification](docs/LINUX.md).
+
+
 ## 3. Interface Textual
 
 Lorsqu'une étape est en cours, les commandes **Check Device & Offers**, **Run** et les sélecteurs de mode ou d'étape sont désactivés pour éviter les exécutions simultanées. L'étape 0 peut modifier la configuration locale ; l'étape 1 ne déclenche pas de paiement, mais peut préparer ADB et Frida. Vérifiez le résultat dans Google Play avant de poursuivre avec **Next**. **Arrêter ou fermer l'outil n'annule pas une transaction déjà transmise.**
@@ -113,13 +137,23 @@ Lorsqu'une étape est en cours, les commandes **Check Device & Offers**, **Run**
 
 **Check Device & Offers** exécute **Step 1 — Available offers**, pour consulter les offres **sans déclencher de paiement**. Surveillez **Live Status** et **Show technical details** ; l'absence de nouveaux journaux pendant 30 secondes ne signifie pas forcément que l'outil est bloqué.
 
-Dans **Advanced: Run by step** :
+Après la vérification du Step 1 dans le tableau de bord, la même action lance automatiquement une consultation limitée et en lecture seule des métadonnées SKU, en réutilisant l’identification existante de l’appareil. Elle instrumente le processus Android autorisé et affiche les phases tarifaires ainsi que les SKU non renvoyés ou sans offre ; elle ne déclenche aucun paiement et n’autorise aucune nouvelle étape payante. Faites défiler la liste pour consulter les données. Les commandes restent verrouillées jusqu’à la fin de la consultation ; **Stop SKU scan** ou Exit demandent son annulation. La séquence guidée s’arrête au Step 4 ; le Step 5 facultatif exige l’offre compatible exacte dans le rapport principal du Step 1 et une confirmation distincte. Voir [consultation des SKU](docs/SKU-EXPLORER.md).
+
+Lorsque l’interface est inactive, l’outil vérifie les connexions ADB existantes environ toutes les cinq secondes. Si ADB ou l’appareil Android est introuvable, une fenêtre indique les vérifications à effectuer. La recherche continue automatiquement et l’état de l’appareil est mis à jour ; une reconnexion ne déverrouille pas à elle seule les étapes de paiement. La surveillance est suspendue pendant une étape ou l’affichage d’une autre boîte de dialogue. Elle n’installe ni ne connecte d’appareil en arrière-plan, même si `adb devices` peut démarrer le serveur ADB local.
+
+Sous Windows, **Check Device & Offers** recherche ADB et tente, si nécessaire, de télécharger les Android SDK Platform-Tools officiels. Le téléchargement ou l’installation peut échouer : consultez **Show technical details** en cas d’erreur. Sous macOS, installez Platform-Tools selon les instructions pour Mac. Installez et démarrez MuMu séparément, activez root et le débogage ADB, puis connectez-vous à Google Play et à Google One.
+
+Les étapes 2–5 ne sont déverrouillées qu’après une nouvelle vérification de l’étape 1 ayant retourné des offres et confirmé le compte Play. Si l’offre de 12 mois `12months-eft` comporte une première période à 0, la fenêtre de résultat et l’écran principal affichent **Continue to Step 2** ; sinon, consultez la liste des offres. Ce bouton ouvre une confirmation distincte et ne garantit ni l’éligibilité ni le coût final. Après la demande de paiement, vérifiez l’abonnement, la date de renouvellement et les frais réels dans Google Play avant de choisir **Verified in Google Play → Next**. Chaque étape suivante exige une confirmation distincte. Une nouvelle vérification, l’échec d’une étape de paiement ou un changement d’appareil peut verrouiller à nouveau les étapes de paiement.
+
+Dans **Choose another step** :
+
+Par défaut, seule l’étape sélectionnée est exécutée. Dans **Choose another step**, sélectionnez **More run options…** à la fin du menu des étapes pour afficher les modes guidés.
 
 | Mode | Fonctionnement |
 | --- | --- |
-| **One step only** | Exécute uniquement l'étape 0 à 5 sélectionnée |
-| **From selected step** | Lance une séquence guidée depuis l'étape 2 à 5 sélectionnée |
-| **All: Steps 2–5** | Lance une séquence guidée à partir de l'étape 2 ; l'étape 5 est facultative |
+| **Stop after this step** | Exécute uniquement l'étape 0 à 5 sélectionnée |
+| **Offer the next step** | Lance une séquence guidée depuis l'étape 2 à 5 sélectionnée |
+| **Start at Step 2** | Lance une séquence guidée à partir de l'étape 2 ; l'étape 5 est facultative |
 
 | Étape | Fonction | Risque |
 | --- | --- | --- |
@@ -146,6 +180,18 @@ Les durées sont les **anciens noms des étapes** et ne garantissent aucune prol
 Dans le TUI, **chaque étape de paiement exige une approbation distincte**. Même si un envoi de paiement est signalé, vérifiez le forfait actif, les frais et le renouvellement dans les [abonnements Google Play](https://play.google.com/store/account/subscriptions). Ne sélectionnez **Verified in Google Play → Next** que si vous avez confirmé personnellement la modification. L'outil **ne prouve pas à lui seul** l'activation.
 
 **Arrêt/sortie :** Stop pour les étapes 0–1 demande l'arrêt du processus local. Pour les étapes 2–5, **Stop after this step** bloque les étapes suivantes, mais **n'interrompt pas de force un paiement en cours**. Pendant un paiement, **Q / Exit** attend la fin de l'étape actuelle. **D** affiche/masque le journal technique ; **R** lance le mode choisi.
+
+### Appareil, compte et historique
+
+La carte Device affiche la version d’Android, le SDK, l’ABI et la connexion ADB lorsqu’ils sont disponibles; survolez-la pour voir tous les détails. **Choose account**, à côté de Account, liste les comptes connectés à Android. Sélectionnez le profil voulu dans Play Store et Google One, puis relancez Step 1. L’outil utilise l’adresse du profil actif lorsque Play Store l’identifie explicitement.
+
+Le panneau d’actions s’adapte à son contenu et **Live Status** occupe la hauteur restante, avec l’activité la plus récente en tête. **Show technical details** ouvre un journal qui suit les nouvelles lignes. Le bouton principal et **Run this step** affichent l’étape en cours et les secondes écoulées. Sous Windows, Step 0 reçoit une coche lorsque la vérification de l’environnement intégrée à la recherche d’offres se termine. Sans vérification récente validée, le bouton vert **Check Device & Offers — Step 1** apparaît.
+
+**Recent history** enregistre les démarrages, les résultats et l’action **Verified in Google Play → Next** dans `logs/stage-history/`. Au démarrage, le dernier historique est restauré; le choix d’un compte affiche son historique propre. **↺** indique une étape déjà tentée. L’historique ne confirme pas un abonnement et ne débloque pas les paiements. Après un redémarrage de l’outil ou un changement de compte, relancez Step 1. Les exécutions antérieures à cette fonction ne peuvent pas être restaurées.
+
+La fenêtre de déconnexion propose **Retry connection**, qui affiche **Retrying…** et les secondes; **Got it** ferme la fenêtre. Sous Windows, l’outil tente de reconnecter l’émulateur local, également au lancement d’une étape sans appareil ADB connecté. Lors des consultations, une application qui ne démarre pas fait l’objet d’une seule tentative de redémarrage. Si elle échoue, fermez puis rouvrez MuMu, attendez le démarrage complet d’Android et relancez Step 1. Google One redémarre avant la consultation; Play Store reste ouvert s’il est déjà disponible. **Reload toolkit** relance l’interface au repos avec le code local et crée une nouvelle session.
+
+Avant d’appuyer automatiquement sur **Subscribe**, l’écran de paiement doit afficher exactement l’adresse attendue, un total nul pour aujourd’hui et la durée d’essai prévue; l’offre demandée doit aussi correspondre. Si l’adresse manque ou diffère, l’action automatique s’arrête pour permettre une vérification manuelle. Chaque étape de paiement exige son accord propre. Après l’envoi, vérifiez l’abonnement, la date de renouvellement et les frais dans Google Play. Le rappel des trois vérifications de carte figure dans les confirmations de paiement.
 
 ## 4. Commandes PowerShell (utilisateurs avancés)
 
@@ -204,6 +250,8 @@ Les journaux se trouvent dans `logs/` et les rapports dans `ultra0-report/`. **N
 
 Si vous rencontrez des problèmes pour installer ou utiliser ePlus AI Toolkit, vous pouvez contacter la communauté et échanger des conseils sur la [publication d'assistance et de discussion Telegram d'ePlus](https://t.me/eplus_news/29). Pour les bugs reproductibles, vous pouvez aussi [ouvrir une issue GitHub](https://github.com/hoangsvit/google-ai/issues). **Ne publiez jamais de mots de passe, de codes OTP/2FA, de jetons d'offre ou d'achat, de journaux non anonymisés ou de données bancaires.** Il ne s'agit pas du support officiel de Google.
 
+**Soutenez le projet avec les boosts Telegram :** Si ePlus AI Toolkit vous est utile et que vous disposez de Telegram Premium, vous pouvez utiliser un boost disponible pour [booster @eplus_news](https://t.me/eplus_news?boost). Votre soutien aide à débloquer davantage de fonctionnalités communautaires sur notre chaîne. Le boost est entièrement facultatif et n'affecte ni l'accès à l'outil, ni ses fonctionnalités, ni l'assistance.
+
 **Vous n'êtes pas éligible à l'offre Google AI Pro ?** Vous pouvez découvrir un autre projet communautaire d'ePlus.DEV : [Muse Invite Hub](https://github.com/ePlus-DEV/muse-invite-hub), pour [rechercher ou partager des codes d'invitation Muse](https://muse.eplus.dev/). **Muse est un service distinct** : ses invitations **ne donnent pas accès à Google AI Pro et ne remplacent pas** un abonnement Google AI Pro. La disponibilité des codes et les conditions géographiques ou de compte peuvent varier.
 
 ## Organisation du dépôt
@@ -228,6 +276,6 @@ Voir aussi [structure et maintenance](docs/PROJECT.md), [utilisation et CLI](doc
 
 ## Crédits
 
-**Auteur d'origine :** [@gylive](https://github.com/gylive) — [google-ultra](https://github.com/gylive/google-ultra). **Maintenance :** [David Nguyen (@hoangsvit)](https://github.com/hoangsvit) / [ePlus.DEV](https://eplus.dev). Les mentions MIT de l'auteur initial sont conservées dans `THIRD_PARTY_NOTICES.md`.
+Merci à l'auteur d'origine, au mainteneur et à toutes les personnes qui contribuent. Consultez la [liste des crédits et des contributeurs](CONTRIBUTORS.md). La notice MIT d'origine est conservée dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) ; elle ne concède pas, à elle seule, de licence aux nouvelles contributions sans rapport.
 
 [Centre de documentation](docs/README.md) · [Guide historique en français](docs/i18n/README.fr.md) · [Sécurité des paiements](docs/SAFETY.md)

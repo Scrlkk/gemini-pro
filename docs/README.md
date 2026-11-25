@@ -2,23 +2,23 @@
 
 [← Project overview](../README.md) · [Security](../SECURITY.md) · [GitHub Releases](https://github.com/hoangsvit/google-ai/releases)
 
-This is the **version-controlled documentation hub** for the Windows and macOS toolkit. Start with the platform guide, then follow only the instructions relevant to your goal. The main README retains the original full user guide format, including Windows and macOS installation and detailed usage.
+This is the **version-controlled documentation hub** for the Windows, macOS and Linux toolkit. Start with the platform guide, then follow only the instructions relevant to your goal. The main README retains the original full user guide format, including platform installation and detailed usage.
 
 > [!CAUTION]
 > **Unofficial project. Steps 2–5 can initiate real Google Play charges.** A listed offer or a $0 introductory price does not prove subscription eligibility, activation or renewal. Review the current account, today's charge, later prices and subscription details directly in Google Play. See [Safety & billing](SAFETY.md).
 
 ## Platform software requirements
 
-| | Windows | macOS |
-| --- | --- | --- |
-| Shell | **PowerShell 5.1+** | **Terminal (zsh/bash)**; PowerShell is **not** needed |
-| Python and Git | Python **3.10+** and Git | Python **3.10+** and Git |
-| Android | Root/ADB-enabled MuMuPlayer or authorized Android device with Google Play Store and Google One | Rooted compatible Android device/emulator with both apps; MuMuPlayer Pro for Mac is an Apple Silicon option, not Intel |
-| ADB and Frida | Windows launcher can locate/install Platform-Tools and prepare Frida **16.5.9** | Install ADB separately (e.g. `brew install android-platform-tools`); Mac launcher installs Frida **16.5.9** into `.venv` |
-| Launcher | `.\run-all.ps1` | `sh run-macos.sh` or `ePlus-AI-Toolkit.command` |
-| Setup guide | [Windows requirements and installation](INSTALLATION.md) | [macOS requirements and installation](MACOS-PREVIEW.md) |
+| | Windows | macOS | Linux (Ubuntu x86_64) |
+| --- | --- | --- | --- |
+| Shell | **PowerShell 5.1+** | **Terminal (zsh/bash)**; PowerShell is **not** needed | **Terminal (sh/bash)**; no PowerShell |
+| Python and Git | Python **3.10+** and Git | Python **3.10+** and Git | Python **3.10+** with `venv`/`pip` and Git |
+| Android | Root/ADB-enabled MuMuPlayer or authorized Android device with Google Play Store and Google One | Rooted compatible Android device/emulator with both apps; MuMuPlayer Pro for Mac is an Apple Silicon option, not Intel | Rooted USB Android phone with Google Play Store and Google One; one authorized ADB device |
+| ADB and Frida | Windows launcher can locate/install Platform-Tools and prepare Frida **16.5.9** | Install ADB separately (e.g. `brew install android-platform-tools`); Mac launcher installs Frida **16.5.9** into `.venv` | Install Platform-Tools separately (`PATH` or `ADB_PATH`); Frida **16.5.9** in `.venv`; Android 16+ blocked |
+| Launcher | `.\run-all.ps1` | `sh run-macos.sh` or `ePlus-AI-Toolkit.command` | `sh run-linux.sh` |
+| Setup guide | [Windows requirements and installation](INSTALLATION.md) | [macOS requirements and installation](MACOS-PREVIEW.md) | [Linux setup and verification](LINUX.md) |
 
-Only the macOS host / mocked logic is covered by automated checks; real Mac/MuMu billing has not been validated. Choose the appropriate guide and do not run the Windows-only `.ps1`, `.bat`, or `setup_env.py` path on macOS.
+Automated checks use mocks for billing on every platform. Real Mac/MuMu checkout and Linux rooted-device end-to-end testing remain unverified. [See the CI-generated terminal preview gallery on PR #84](https://github.com/hoangsvit/google-ai/pull/84). All preview account and offer data is simulated.
 
 ## Start here
 
@@ -27,6 +27,7 @@ Only the macOS host / mocked logic is covered by automated checks; real Mac/MuMu
 | Install Windows, MuMuPlayer, Python and ADB | [Installation & prerequisites](INSTALLATION.md) |
 | Start the dashboard and use the guided steps | [Dashboard & PowerShell CLI](USAGE.md) |
 | Install and use the macOS version (Steps 0–5) | [macOS guide](MACOS-PREVIEW.md) |
+| Set up Ubuntu and a rooted USB phone | [Linux guide](LINUX.md) |
 | Diagnose ADB, Frida, account or billing errors | [Troubleshooting & results](TROUBLESHOOTING.md) |
 | Deep dive into setup and compatibility | [Advanced technical guide](DETAILED-GUIDE.md) |
 | Understand charge risks and limitations | [Safety & billing](SAFETY.md) · [Security policy](../SECURITY.md) |

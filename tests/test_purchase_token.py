@@ -20,13 +20,17 @@ class PurchaseTokenTests(unittest.TestCase):
     def test_android_database_copy_is_removed_after_success(self):
         with tempfile.TemporaryDirectory() as home:
             source = Path(home) / "test.db"
-            with contextlib.closing(sqlite3.connect(source)) as db, db:
+            db = sqlite3.connect(source)
+            try:
                 db.execute("CREATE TABLE ownership (doc_id text, account text, "
                            "subs_valid_until_time integer, inapp_purchase_data text)")
                 db.execute("INSERT INTO ownership VALUES (?, ?, ?, ?)",
                            ("subs_variant", "test@example.com",
                             int(time.time() * 1000) + 60000,
                             json.dumps({"purchaseToken": "mock-secret"})))
+                db.commit()
+            finally:
+                db.close()
             calls = []
             def fake_sh(*args, **kwargs):
                 calls.append(args)
@@ -79,7 +83,8 @@ class PurchaseTokenTests(unittest.TestCase):
             root = Path(home)
             source = root / "play-library.db"
             now = int(time.time() * 1000)
-            with contextlib.closing(sqlite3.connect(source)) as db, db:
+            db = sqlite3.connect(source)
+            try:
                 db.execute("CREATE TABLE ownership (doc_id text, account text, "
                            "subs_valid_until_time integer, inapp_purchase_data text)")
                 for account, until, token in (
@@ -90,6 +95,9 @@ class PurchaseTokenTests(unittest.TestCase):
                     db.execute("INSERT INTO ownership VALUES (?, ?, ?, ?)",
                                ("g1.2tb.ai.subs_variant", account, until,
                                 json.dumps({"purchaseToken": token})))
+                db.commit()
+            finally:
+                db.close()
             def fake_sh(*args, **kwargs):
                 if args[0] == "pull":
                     shutil.copyfile(source, args[2])

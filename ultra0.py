@@ -22,6 +22,8 @@ import argparse, base64, hashlib, hmac, json, os, re, struct, subprocess, sys, t
 import shlex
 from pathlib import Path
 import tempfile
+from uuid import uuid4
+from xml.etree import ElementTree
 
 # Standalone launches may use a Windows legacy console code page that cannot
 # encode status symbols. Preserve the console's encoding, but escape unsupported
@@ -337,13 +339,17 @@ def read_purchase_token(sku_short: str, expected_account: str = "") -> str:
             now_ms = int(time.time() * 1000)
             picked = None
             try:
-                # sqlite3.Connection.__exit__ only commits/rolls back; closing() releases the file lock on Windows.
-                with contextlib.closing(sqlite3.connect(str(local))) as con:
+                # The sqlite3 context manager commits but does not close its
+                # handle; on Windows this prevents deletion of the temp Play DB.
+                con = sqlite3.connect(str(local))
+                try:
                     rows = con.execute(
                         "select account, subs_valid_until_time, inapp_purchase_data "
                         "from ownership where doc_id like ?",
                         (f"%{sku_short}%",),
                     ).fetchall()
+                finally:
+                    con.close()
                 for account, valid, data in rows:
                     if not data:
                         continue
@@ -383,31 +389,71 @@ def read_purchase_token(sku_short: str, expected_account: str = "") -> str:
             pass
 
 
-def ensure_vending():
+def ensure_vending(*, retry_startup: bool = False) -> bool:
     """Google Play Store must be running for BillingClient queries to complete."""
     if sh("shell", f"pidof {VENDING}"):
         ok("Google Play Store process is running")
-        return
+        return True
     warn("Google Play Store is not running; attempting to start it...")
-    sh("shell", f"monkey -p {VENDING} -c android.intent.category.LAUNCHER 1", timeout=30)
-    for _ in range(20):
-        time.sleep(1)
-        if sh("shell", f"pidof {VENDING}"):
-            ok("Google Play Store started")
-            time.sleep(2)
-            return
+    for attempt in range(2 if retry_startup else 1):
+        if attempt:
+            warn("Google Play Store did not start during the offer check; restarting it once.")
+            sh("shell", f"am force-stop {VENDING}", timeout=15)
+        try:
+            sh("shell", f"monkey -p {VENDING} -c android.intent.category.LAUNCHER 1", timeout=30)
+        except subprocess.TimeoutExpired:
+            if not retry_startup:
+                raise
+            warn("Google Play Store launch command timed out; checking whether it started.")
+        for _ in range(20):
+            time.sleep(1)
+            if sh("shell", f"pidof {VENDING}"):
+                ok("Google Play Store started")
+                time.sleep(2)
+                return True
     warn("Google Play Store did not start. Open it manually or restart the emulator.")
+    return False
 
 
 def ensure_module_apk():
-    if sh("shell", f"ls {MODULE_REMOTE} 2>/dev/null"):
-        ok("Billing module is already installed")
-        return
-    note("Pushing billing module to Android (one-time setup)...")
-    tmp = Path(tempfile.gettempdir()) / "module_521.apk"
-    tmp.write_bytes(base64.b64decode(MODULE_B64))
-    sh("push", str(tmp), MODULE_REMOTE, timeout=120)
-    ok("Billing module installed")
+    """Install the module and normalize permissions even on existing copies."""
+    try:
+        path = shlex.quote(MODULE_REMOTE)
+        # Reject links (including dangling ones) and non-regular files before
+        # any push or permission change. Do not remove an unexpected path.
+        state = sh("shell",
+                   f"if [ -L {path} ]; then echo invalid; "
+                   f"elif [ -f {path} ]; then echo present; "
+                   f"elif [ -e {path} ]; then echo invalid; "
+                   "else echo missing; fi", timeout=15, check=True).strip()
+        if state not in ("present", "missing"):
+            raise RuntimeError("Unexpected billing module file type")
+        existing = state == "present"
+        if not existing:
+            note("Pushing billing module to Android (one-time setup)...")
+            with tempfile.TemporaryDirectory(prefix="eplus-module-") as directory:
+                tmp = Path(directory) / "module_521.apk"
+                tmp.write_bytes(base64.b64decode(MODULE_B64))
+                sh("push", str(tmp), MODULE_REMOTE, timeout=120, check=True)
+        # The app loading the module must not have write access to it.
+        # Repeat the file-type guard in both shell contexts, including after
+        # a fresh push and before the privileged fallback.
+        command = f"test ! -L {path} && test -f {path} && chmod 644 {path} && echo ok"
+        try:
+            changed = sh("shell", command, timeout=15, check=True).strip() == "ok"
+        except RuntimeError:
+            changed = False
+        if not changed:
+            # Some authorized rooted devices use a non-root ADB shell.
+            changed = sh("shell", "su -c " + shlex.quote(command),
+                         timeout=15, check=True).strip() == "ok"
+        if not changed:
+            raise RuntimeError("Permission change not confirmed")
+    except (OSError, RuntimeError, subprocess.TimeoutExpired):
+        print("EPLUS_ISSUE:billing_module_setup_failed", flush=True)
+        warn("Billing module setup failed. Check authorized Android access and file permissions.")
+        raise RuntimeError("Billing module setup failed") from None
+    ok("Billing module is already installed" if existing else "Billing module installed")
 
 
 def ensure_network():
@@ -423,9 +469,65 @@ def ensure_network():
 
 
 # ---------- UI ----------
+class UICaptureError(RuntimeError):
+    """Android UI capture failed; do not infer account or checkout state."""
+
+
+def _capture_ui_once() -> str:
+    """Read only a fresh, complete hierarchy from a successful or SIGSEGV dump."""
+    path = f"/sdcard/eplus-ui-{uuid4().hex}.xml"
+    base = [ADB] + (["-s", SERIAL] if SERIAL else [])
+    def run(*args, timeout):
+        return subprocess.run(base + ["shell", *args], capture_output=True, timeout=timeout)
+
+    try:
+        dumped = run("uiautomator", "dump", path, timeout=20)
+        code = dumped.returncode
+        # Android shell exit 139 is SIGSEGV. An arbitrary ADB error or a
+        # crashed host ADB process is not evidence of a completed dump.
+        if code not in (0, 139):
+            if re.search(rb"segmentation fault|sigsegv", dumped.stderr, re.I):
+                raise UICaptureError("Android UI capture failed")
+            print(f"Android UI capture failed: dump exit {code}; diagnostic omitted",
+                  file=sys.stderr, flush=True)
+            return ""
+        read = run("cat", path, timeout=5)
+        if read.returncode == 0:
+            try:
+                xml = read.stdout.decode("utf-8", "strict").strip()
+                root = ElementTree.fromstring(xml)
+                if root.tag == "hierarchy" and xml.endswith("</hierarchy>"):
+                    return xml
+            except (UnicodeError, ElementTree.ParseError):
+                pass
+        if code == 139:
+            # The contributor observed complete XML before a crash. If the
+            # file is missing, unreadable or malformed, preserve fail-closed recovery.
+            raise UICaptureError("Android UI capture failed")
+        print(f"Android UI capture failed: invalid hierarchy (dump exit {code}, read exit {read.returncode})",
+              file=sys.stderr, flush=True)
+        return ""
+    finally:
+        try:
+            removed = run("rm", "-f", path, timeout=3)
+            if removed.returncode:
+                print("Android UI capture cleanup failed", file=sys.stderr, flush=True)
+        except (OSError, subprocess.SubprocessError):
+            # Never replace the original result or log raw device output.
+            print("Android UI capture cleanup failed", file=sys.stderr, flush=True)
+
+
 def ui_xml() -> str:
-    sh("shell", "uiautomator dump /sdcard/ui.xml")
-    return sh("shell", "cat /sdcard/ui.xml")
+    for attempt in range(2):
+        try:
+            xml = _capture_ui_once()
+        except (UICaptureError, OSError, subprocess.TimeoutExpired):
+            xml = ""
+        if xml:
+            return xml
+        if attempt == 0:
+            time.sleep(1)
+    raise UICaptureError("Android UI capture failed")
 
 
 def nodes(xml: str):
@@ -493,6 +595,23 @@ def totp(secret: str, digits=6, period=30) -> str:
 def accounts_on_device() -> list:
     out = sh("shell", "dumpsys account | grep 'type=com.google'")
     return out.splitlines()
+
+
+def available_google_accounts() -> list[str]:
+    """Read candidate accounts from Android. NOT proof of the active Play payer.
+
+    Some Android versions redact AccountManager identities, so an empty list
+    should prompt manual Play Store selection rather than guessing.
+    """
+    found = set()
+    for line in accounts_on_device():
+        if "type=com.google" not in line:
+            continue
+        for email in re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+                                line, flags=re.I):
+            if len(email) <= 254:
+                found.add(email.lower())
+    return sorted(found)
 
 
 def add_account(email, password, totp_secret="") -> bool:
@@ -614,51 +733,81 @@ def add_card(card: dict) -> bool:
     return True
 
 
+ACCOUNT_SETTINGS_LABELS = (
+    "Account and settings",
+    "\u8d26\u53f7\u548c\u8bbe\u7f6e",
+    "\u0410\u043a\u043a\u0430\u0443\u043d\u0442 \u0438 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438",
+    "T\u00e0i kho\u1ea3n v\u00e0 ch\u1ebf \u0111\u1ed9 c\u00e0i \u0111\u1eb7t",
+)
+
+
+def is_account_settings(description: str) -> bool:
+    return any(label.casefold() in description.casefold() for label in ACCOUNT_SETTINGS_LABELS)
+
+
 def current_play_account() -> str:
     """Read the visible account from Play Store; unknown is not an account mismatch."""
-    profile_descs = (
-        "\u8d26\u53f7\u548c\u8bbe\u7f6e",
-        "Account and settings",
-        "T\u00e0i kho\u1ea3n v\u00e0 ch\u1ebf \u0111\u1ed9 c\u00e0i \u0111\u1eb7t",
-    )
     xml = ui_xml()
-    if f'package="{VENDING}"' not in xml:
+    launched_vending = f'package="{VENDING}"' not in xml
+    if launched_vending:
         note("Opening Play Store to verify the account (Google One may be foreground)...")
         sh("shell", f"am start -n {VENDING}/com.google.android.finsky.activities.MainActivity", timeout=25)
         time.sleep(3)
         xml = ui_xml()
-
-    # Retry briefly if Play Store is still transitioning or rendering its profile icon.
-    opened_profile = False
-    for attempt in range(3):
-        if f'package="{VENDING}"' in xml:
-            for n in nodes(xml):
-                if any(label in n["desc"] for label in profile_descs):
-                    tap(n["x"], n["y"])
-                    time.sleep(3)
-                    opened_profile = True
-                    break
-            if opened_profile:
-                break
-        if attempt < 2:
-            time.sleep(2)
-            xml = ui_xml()
-
     if f'package="{VENDING}"' not in xml:
         warn("Cannot inspect Play Store UI. Open Play Store, tap the profile icon, and retry.")
         return ""
 
-    best = ""
-    for n in nodes(ui_xml()):
-        m = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)", n["desc"] + " " + n["text"])
-        if m:
-            best = m.group(1).lower()
+    opened_profile = False
+    max_attempts = 3 if launched_vending else 1
+    for attempt in range(max_attempts):
+        profile_nodes = list(nodes(xml))
+        active = set()
+        for n in profile_nodes:
+            # Preserve the localized account button labels and accept the new
+            # explicit English prefix, never an arbitrary email elsewhere.
+            if re.match(r"^(?:(?:Google Account|T\u00e0i kho\u1ea3n Google|Google \u5e10\u53f7|Google \u8d26\u53f7)\s*[:\uff1a]|Signed in as\s+)", n["desc"], re.I):
+                active.update(value.lower() for value in re.findall(
+                    r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", n["desc"]))
+        if len(active) == 1:
+            return next(iter(active))
+        if len(active) > 1:
+            warn("Conflicting active Play Store profiles. Select the intended profile manually and repeat Step 1.")
+            return ""
+        for n in profile_nodes:
+            if is_account_settings(n["desc"]):
+                tap(n["x"], n["y"])
+                time.sleep(3)
+                opened_profile = True
+                break
+        if opened_profile:
             break
+        if attempt + 1 < max_attempts:
+            time.sleep(2)
+            xml = ui_xml()
+    # The profile popup may show multiple signed-in Google accounts. Its
+    # first email is NOT necessarily the account currently selected for
+    # billing. Never infer identity from the first arbitrary UI node.
+    emails = set()
+    for n in nodes(ui_xml()):
+        for email in re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+                                n["desc"] + " " + n["text"]):
+            emails.add(email.lower())
     if opened_profile:
         sh("shell", "input keyevent 4")
-    if not best:
+    if len(emails) > 1:
+        warn("Multiple Google accounts are visible in Play Store; the active billing "
+             "account cannot be identified safely. Select the intended account "
+             "manually, then repeat the read-only check.")
+        return ""
+    if not emails:
         warn("Play account is not visible to UI automation; check the Play Store profile manually.")
-    return best
+        return ""
+    if not opened_profile:
+        warn("Play Store profile was not opened; a visible email does not prove "
+             "which account is active for billing.")
+        return ""
+    return next(iter(emails))
 
 
 def switch_play(email) -> bool:
@@ -673,7 +822,7 @@ def switch_play(email) -> bool:
     if current_play_account() == want:
         ok("Google Play account verified"); return True
     for n in nodes(ui_xml()):
-        if "\u8d26\u53f7\u548c\u8bbe\u7f6e" in n["desc"] or "Account and settings" in n["desc"]:
+        if is_account_settings(n["desc"]):
             tap(n["x"], n["y"]); time.sleep(3); break
     for n in nodes(ui_xml()):
         if "\u5c55\u5f00\u8d26\u53f7\u5217\u8868" in n["desc"]:
@@ -695,7 +844,8 @@ def launch_app() -> int:
     if not sh("shell", f"pm path {PKG}", timeout=15).strip():
         warn(f"Google One is not installed or enabled ({PKG}). Install/open it from Play Store.")
         return 0
-    sh("shell", f"am force-stop {PKG}")
+    step("Restarting Google One before querying offers")
+    sh("shell", f"am force-stop {PKG}", check=True)
     try:
         launch_output = sh("shell", f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1", timeout=30)
     except subprocess.TimeoutExpired:
@@ -818,7 +968,7 @@ def get_target_frida_device(pid: int, serial: str):
     return selected
 
 
-def run_trial(pid: int, wait=90, plan="auto", list_only=False, stack=False, old_token="", stack_mode=None, activity_method="auto") -> dict:
+def run_trial(pid: int, wait=90, plan="auto", list_only=False, stack=False, old_token="", stack_mode=None, activity_method="auto", post_launch=None) -> dict:
     step("Injecting billing module to inspect introductory offers")
     dev = get_target_frida_device(pid, SERIAL)
     note(f"Using Frida device: {dev.id} (ADB: {SERIAL})")
@@ -836,9 +986,13 @@ def run_trial(pid: int, wait=90, plan="auto", list_only=False, stack=False, old_
             return
         ev = p.get("ev")
         if ev == "offer":
-            res["offers"].append(p)
+            # Never store private offer tokens or product titles in exported reports.
+            res["offers"].append({key: p.get(key) for key in
+                                  ("product", "id", "micros", "period")})
             note(f"offer {p.get('id')} → {p.get('micros')} ({p.get('period','')})")
-            # Offer tokens are private checkout inputs; do not print them in terminal.
+        elif ev == "chosen":
+            res["chosen_offer"] = {key: p.get(key) for key in ("product", "id", "period")}
+            note(f"Selected Google Play offer ID: {p.get('id')}")
         elif ev == "activity_selected":
             res["activity"] = {"method": p.get("method"), "class": p.get("name")}
             note(f"Activity found via {p.get('method')}: {p.get('name')}")
@@ -850,11 +1004,47 @@ def run_trial(pid: int, wait=90, plan="auto", list_only=False, stack=False, old_
         elif ev and ("err" in ev or ev.startswith("no_")):
             res["errors"].append(p)
 
-    sc = sess.create_script(build_js(plan, list_only, stack, old_token, stack_mode, activity_method))
-    sc.on("message", on_msg)
-    sc.load()
-    time.sleep(wait)
+    try:
+        sc = sess.create_script(build_js(plan, list_only, stack, old_token, stack_mode, activity_method))
+        sc.on("message", on_msg)
+        sc.load()
+        time.sleep(wait)
+        # Keep Frida attached through the Subscribe tap and bounded UI observation,
+        # allowing delayed purchase_cb failures to reach on_msg before cleanup.
+        # Never tap for an unverified offer or a failed billing callback.
+        if post_launch is not None and not list_only and (
+                isinstance(res.get("launched"), dict) and res["launched"].get("code") == 0):
+            expected = {"pro12": "12months-eft", "pro6": "6months-eft",
+                        "pro6b": "6months-eft-2", "pro6c": "6months-eft-ss-2026"}.get(plan)
+            chosen = res.get("chosen_offer")
+            callback = res.get("purchase")
+            rejected = isinstance(callback, dict) and str(callback.get("code")) not in ("0", "None")
+            if expected and isinstance(chosen, dict) and chosen.get("id") == expected and not rejected:
+                res["sheet"] = post_launch()
+    finally:
+        try:
+            sess.detach()
+        except Exception:
+            pass  # The device may already have disconnected.
     return res
+
+
+def query_offers_with_recovery(pid: int, **kwargs) -> dict:
+    """Retry transient Frida connection failures once, only for read-only queries."""
+    import frida
+    transient = tuple(cls for name in ("TransportError", "ServerNotRunningError",
+                                        "ProcessNotFoundError", "TimedOutError")
+                      if isinstance((cls := getattr(frida, name, None)), type)
+                      and issubclass(cls, Exception))
+    try:
+        return run_trial(pid, list_only=True, **kwargs)
+    except transient:
+        warn("Frida connection failed during the read-only check; reconnecting once.")
+        ensure_frida_server()
+        fresh_pid = launch_app()
+        if not fresh_pid:
+            raise RuntimeError("Google One could not be restarted for the read-only retry")
+        return run_trial(fresh_pid, list_only=True, **kwargs)
 
 
 def diagnose_launch_failure(fr: dict) -> tuple:
@@ -937,6 +1127,9 @@ def assess_checkout_terms(text: str, expected_plan: str = "auto") -> dict:
                                "không đủ điều kiện dùng thử")):
         result["reason"] = "ineligible"
         return result
+    if "the item you requested is not available for purchase" in low:
+        result["reason"] = "purchase_unavailable"
+        return result
     if "processing" in low and "subscribe" not in low:
         result["reason"] = "processing"
         return result
@@ -966,7 +1159,7 @@ def assess_checkout_terms(text: str, expected_plan: str = "auto") -> dict:
     return result
 
 
-def confirm_zero(wait=40, password="", expected_plan="auto") -> dict:
+def confirm_zero(wait=40, password="", expected_plan="auto", expected_account="") -> dict:
     step("Checking today's Google Play checkout total and trial duration")
     out = {"price": None, "confirmed": False, "ineligible": False,
            "text": "", "reason": "checkout_not_visible"}
@@ -977,9 +1170,9 @@ def confirm_zero(wait=40, password="", expected_plan="auto") -> dict:
         reason = assessment["reason"]
         out.update({"reason": reason, "price": assessment["today_price"],
                     "text": assessment["text"]})
-        if reason == "ineligible":
+        if reason in ("ineligible", "purchase_unavailable"):
             out["ineligible"] = True
-            warn("Google Play says this account is not eligible; no Subscribe tap.")
+            warn("Google Play reports that this item or offer is unavailable; no Subscribe tap.")
             return out
         if reason == "payment_security_blocked":
             out["error_code"] = assessment.get("error_code")
@@ -996,9 +1189,49 @@ def confirm_zero(wait=40, password="", expected_plan="auto") -> dict:
             warn("Google Play backup-payment prompt needs manual review; not enabling it automatically.")
             return out
         if reason == "zero_today_and_duration_verified":
+            if expected_account:
+                accounts = {email.lower() for email in re.findall(
+                    r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", visible)}
+                if accounts != {expected_account.strip().lower()}:
+                    out["reason"] = "checkout_account_mismatch" if accounts else "checkout_account_unverified"
+                    warn("Checkout account could not be matched to the selected account. "
+                         "Review the account on the Google Play checkout screen before retrying.")
+                    return out
+                # An email anywhere on the screen is NOT evidence of the payer.
+                # Require the checkout itself to explicitly identify the payer,
+                # otherwise leave the sheet open for manual confirmation.
+                payer_label = (
+                    r"(?:paying\s+(?:with|as)|billed\s+to|purchase\s+account|"
+                    r"google\s+play\s+account)\s*[:：\-]?\s*" +
+                    re.escape(expected_account.strip().lower())
+                )
+                if not re.search(payer_label, visible, re.I):
+                    out["reason"] = "checkout_account_unverified"
+                    warn("Google Play does not explicitly identify the purchase payer. "
+                         "No automatic Subscribe tap; verify manually in Google Play.")
+                    return out
             if tap_text("\u8ba2\u9605", "Subscribe", "Đăng ký"):
                 out["confirmed"] = True
                 ok("Tapped Subscribe after verifying today's zero total and expected trial period.")
+                # A tap is not a purchase. Play can reject it *after* the button
+                # was pressed. Inspect the real Play UI before navigating away.
+                for _ in range(4):
+                    time.sleep(1)
+                    after = " ".join(n["text"] or n["desc"] for n in nodes(ui_xml())
+                                     if n["text"] or n["desc"])
+                    observed = assess_checkout_terms(after, expected_plan)
+                    if observed["reason"] in (
+                            "purchase_unavailable", "ineligible", "already_subscribed",
+                            "payment_security_blocked", "processing",
+                            "backup_payment_methods_prompt",
+                            "today_price_unverified", "trial_duration_unverified"):
+                        out["confirmed"] = False
+                        out["reason"] = observed["reason"]
+                        out["text"] = observed["text"]
+                        out["ineligible"] = observed["reason"] in ("purchase_unavailable", "ineligible")
+                        warn("Google Play rejected or held checkout after the tap; "
+                             "no subscription or renewal was verified.")
+                        return out
             else:
                 out["reason"] = "subscribe_button_not_found"
                 warn("Subscribe control not found; no transaction confirmed.")
@@ -1034,6 +1267,8 @@ def process(email, password="", totp_secret="", add=True, card=None, plan="auto"
             if not add_account(email, password, totp_secret):
                 rec["status"] = "add_account_failed"
                 return rec
+        except UICaptureError:
+            raise
         except Exception as e:
             warn(f"Could not add Google account: {e}")
             rec["status"] = "add_account_error"
@@ -1043,6 +1278,8 @@ def process(email, password="", totp_secret="", add=True, card=None, plan="auto"
             if not add_card(card):
                 rec["status"] = "payment_method_not_confirmed"
                 return rec
+        except UICaptureError:
+            raise
         except Exception as e:
             warn(f"Could not add payment card: {type(e).__name__}")
             rec["status"] = "payment_method_not_confirmed"
@@ -1080,32 +1317,77 @@ def process(email, password="", totp_secret="", add=True, card=None, plan="auto"
             warn("No purchase token found; falling back to queryPurchases (may fail)")
 
     pid = launch_app()
+    if not pid and list_only:
+        warn("Google One did not start during the offer check; restarting it once.")
+        pid = launch_app()
     if not pid:
         rec["status"] = "app_not_started"
         return rec
-    fr = run_trial(pid, plan=plan, list_only=list_only, stack=stack, old_token=old_token,
+    options = dict(plan=plan, stack=stack, old_token=old_token,
                    stack_mode=stack_mode, activity_method=activity_method)
+    fr = (query_offers_with_recovery(pid, **options) if list_only else
+          run_trial(pid, list_only=False, **options,
+                    post_launch=lambda: confirm_zero(
+                        password=password, expected_plan=plan, expected_account=email)))
     rec.update(fr)
+    if not list_only and plan in ("pro12", "pro6", "pro6b", "pro6c"):
+        expected = {"pro12": "12months-eft", "pro6": "6months-eft",
+                    "pro6b": "6months-eft-2", "pro6c": "6months-eft-ss-2026"}[plan]
+        chosen = fr.get("chosen_offer")
+        if not isinstance(chosen, dict) or chosen.get("id") != expected:
+            rec["status"] = "offer_not_available"
+            rec["error"] = "The requested Google Play offer could not be verified in the billing response."
+            warn("The selected offer did not match the requested step. No Subscribe tap was attempted.")
+            return rec
     if list_only:
         rec["status"] = "listed" if fr.get("offers") else "offer_query_failed"
         if not fr.get("offers"):
             rec["error"] = "No offer data returned; inspect BillingClient and Frida errors."
         return rec
     if fr["launched"] and fr["launched"].get("code") == 0:
-        rec["sheet"] = confirm_zero(password=password, expected_plan=plan)
+        # A rejection callback takes precedence over an OK launch response.
+        callback = fr.get("purchase")
+        if isinstance(callback, dict):
+            try:
+                purchase_code = int(callback.get("code"))
+            except (TypeError, ValueError):
+                purchase_code = None
+            if purchase_code not in (None, 0):
+                rec["status"] = "purchase_unavailable" if purchase_code == 4 else "billing_flow_error"
+                rec["error"] = ("Google Play rejected the purchase (ITEM_UNAVAILABLE)."
+                                if purchase_code == 4 else
+                                f"Google Play purchase callback returned code {purchase_code}.")
+                return rec
+        # Production observes the post-tap screen while Frida remains attached.
+        # Fallback supports existing test doubles that only return launch events.
+        rec["sheet"] = (fr["sheet"] if isinstance(fr.get("sheet"), dict) else
+                        confirm_zero(password=password, expected_plan=plan, expected_account=email))
         # Preserve the original checkout screen if amount or offer terms
         # are ambiguous; never navigate away before the user can inspect it.
         if rec["sheet"].get("confirmed"):
-            rec["subscription_page"] = verify()
+            # Do not navigate away automatically: Play can still display a
+            # delayed payment rejection or need additional user confirmation.
+            note("Subscribe was tapped, but the purchase is unverified. "
+                 "Leave Google Play open for manual review of its final status.")
         else:
             note("Checkout not confirmed; Google Play remains open for inspection.")
         # launchBillingFlow code 0 and seeing a product name on the Play page
         # DO NOT prove the subscription is active or a free trial is applied.
-        if rec["sheet"].get("reason") == "payment_security_blocked":
+        reason = rec["sheet"].get("reason")
+        if reason == "payment_security_blocked":
             rec["status"] = "checkout_security_blocked"
+        elif rec["sheet"].get("confirmed"):
+            # Button tap means submitted, not paid or subscription activated.
+            rec["status"] = "checkout_requested"
+        elif reason in (
+                "purchase_unavailable", "ineligible", "already_subscribed",
+                "processing", "backup_payment_methods_prompt",
+                "today_price_unverified", "trial_duration_unverified",
+                "subscribe_button_not_found", "checkout_not_visible",
+                "checkout_account_mismatch", "checkout_account_unverified"):
+            rec["status"] = reason
         else:
-            rec["status"] = ("checkout_requested" if rec["sheet"].get("confirmed")
-                             else "checkout_not_confirmed")
+            rec["status"] = "checkout_not_confirmed"
     else:
         rec["status"], rec["error"] = diagnose_launch_failure(fr)
         warn(f"Checkout not opened: {rec['status']}: {rec['error']}")
@@ -1193,7 +1475,7 @@ def main():
     ensure_network()
     ensure_frida_server()
     ensure_module_apk()
-    ensure_vending()   # Google Play Store must be running for product-query callbacks.
+    play_started = ensure_vending(retry_startup=a.list)
 
     REPORT_DIR.mkdir(exist_ok=True)
     rows = []
@@ -1215,9 +1497,20 @@ def main():
         card = parse_card(row)
         print(f"\n---- Progress {i}/{len(rows)} ----")
         try:
-            rec = process(email, pw, sec, add=(not a.no_add and not a.list), card=card, plan=a.plan,
-                          no_switch=a.no_switch, list_only=a.list, stack=a.stack, old_token=a.old_token,
-                          stack_mode=a.mode, activity_method=a.activity_method)
+            if a.list and not play_started:
+                rec = {"email": email, "status": "play_store_not_started"}
+            else:
+                rec = process(email, pw, sec, add=(not a.no_add and not a.list), card=card, plan=a.plan,
+                              no_switch=a.no_switch, list_only=a.list, stack=a.stack, old_token=a.old_token,
+                              stack_mode=a.mode, activity_method=a.activity_method)
+        except UICaptureError:
+            # Stop the whole invocation, including multi-account runs. No
+            # automatic checkout retry or account substitution is permitted.
+            rec = {"email": email, "status": "ui_capture_failed"}
+            (REPORT_DIR / report_filename(email)).write_text(
+                json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
+            warn("Android UI capture failed. Restart the Android device, then repeat Step 1. Check Google Play payment history before retrying any paid step.")
+            return 23
         except Exception as e:
             warn(f"{type(e).__name__}: {str(e)[:320]}")
             rec = {"email": email, "status": "exception", "error": str(e)[:320],

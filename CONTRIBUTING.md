@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve the Windows and macOS implementations of this toolkit. The original implementation comes from [gylive/google-ultra](https://github.com/gylive/google-ultra); current maintenance is by [David Nguyen (@hoangsvit)](https://github.com/hoangsvit).
+Thanks for helping improve the Windows, macOS and Linux implementations of this toolkit. The original implementation comes from [gylive/google-ultra](https://github.com/gylive/google-ultra); current maintenance is by [David Nguyen (@hoangsvit)](https://github.com/hoangsvit). See [CONTRIBUTORS.md](CONTRIBUTORS.md) for full project credits.
 
 ## Report an issue
 
@@ -16,6 +16,10 @@ Use [GitHub Issues](https://github.com/hoangsvit/google-ai/issues) and include t
 ## macOS preview contributions
 
 The experimental [full macOS port](docs/MACOS-PREVIEW.md) includes Steps 0–5 and per-stage checkout safeguards. Changes must include mock-only tests for account/offer validation, approval and error paths on Mac runners. Never attempt live checkout in CI or claim real-device compatibility from mocks. Send PRs to `dev` first.
+
+## Linux contributions
+
+The [Linux launcher](docs/LINUX.md) shares the native stage adapter with macOS. CI runs offline tests on Ubuntu with Python 3.11 and 3.13. Validate device compatibility separately on a rooted test phone and stop the hardware test if the phone becomes unstable.
 
 ## Propose a change
 
@@ -54,7 +58,7 @@ Documentation and terminal usability fixes are welcome. Preserve attribution to 
 
 ## Documentation changes
 
-- Preserve the original detailed format of all root READMEs (Windows + macOS setup, dashboard, CLI, troubleshooting, safety and credits). Keep additional technical guidance in the [documentation hub](docs/README.md); do not require users to switch branches to install either platform.
+- Preserve the original detailed format of all root READMEs (Windows + macOS setup, dashboard, CLI, troubleshooting, safety and a credits section linking to [CONTRIBUTORS.md](CONTRIBUTORS.md)). Keep detailed attribution in that single canonical file; preserve the upstream MIT notice in every README. Keep additional technical guidance in the [documentation hub](docs/README.md); do not require users to switch branches to install either platform.
 - Update the full English README and six root-language READMEs together. Review topic-specific docs and historical translations under `docs/i18n/` for consistency.
 - Always preserve billing warnings and verification requirements. Do not confuse a Google Play offer listing, submitted checkout or authorization hold with successful subscription activation.
 - Before submitting a PR, run `python -m unittest discover -s tests -p 'test_readme_locales.py' -v` and `python -m unittest discover -s tests -p 'test_docs_navigation.py' -v` to check links, classic README structure and platform installation guidance.

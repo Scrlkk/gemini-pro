@@ -83,6 +83,18 @@ def prefer_alias(serials):
         0 if re.fullmatch(r"emulator-\d+", s) else 1, s))[0]
 
 
+def same_boot_transports(adb, selected, serials):
+    """True only when all observed transports belong to the selected device."""
+    online = list(dict.fromkeys(serials))
+    if selected not in online:
+        return False
+    if len(online) == 1:
+        return True
+    identity = boot_uuid(adb, selected)
+    return bool(identity and all(boot_uuid(adb, serial) == identity
+                                 for serial in online if serial != selected))
+
+
 def auto_select_device(adb, *, preferred=None, serials=None):
     """Return a single serial, or None if there is no safe unique choice."""
     online = list(dict.fromkeys(serials if serials is not None else online_serials(adb)))

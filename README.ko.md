@@ -1,15 +1,15 @@
 # ePlus AI Toolkit — 한국어
 
-<!-- Source README.md git-blob: fd33739d3dfce6447a54761f8ad3f682634de172 -->
+<!-- Source README.md git-blob: 7954de699c157a7f0ebbbe70f3c0df2a09e3c7f3 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · **한국어** · [Español](README.es.md) · [Français](README.fr.md)
 
 
 > **원본 문서:** [영어 README](README.md). 한국어로 쉽게 읽을 수 있도록 설명을 다듬었으며, 명령어와 기술적 조건, 안전 경고는 원본에 맞추었습니다. 설명과 실제 동작이 다를 경우 소스 코드와 영어 문서를 확인하세요.
 
-**ePlus AI Toolkit**은 Android 기기의 Google One과 Google Play에 표시되는 Google AI Pro 혜택을 확인하는 도구입니다. **Windows**에서는 PowerShell로, **macOS**에서는 Terminal(zsh/bash)로 실행합니다. Textual 화면과 명령줄 방식은 모두 Python·ADB·Frida 기반의 동일한 실행 엔진을 사용합니다.
+**ePlus AI Toolkit**은 Android 기기의 Google One과 Google Play에 표시되는 Google AI Pro 혜택을 확인하는 도구입니다. **Windows**에서는 PowerShell로, **macOS**와 **Linux**에서는 Terminal(zsh/bash)로 실행합니다. Textual 화면과 명령줄 방식은 모두 Python·ADB·Frida 기반의 동일한 실행 엔진을 사용합니다.
 
-![ePlus AI Toolkit 화면](https://github.com/user-attachments/assets/fc27278f-7833-4484-9770-33e46bf10005)
+![ePlus AI Toolkit 화면](images/terminal-ui-overview.png)
 
 > [!CAUTION]
 > **비공식 도구이며 실제 요금이 청구될 수 있습니다.** **Step 2–5**는 실제 Google Play 결제 화면을 열고 상황에 따라 **Subscribe(구독)**를 자동으로 누를 수 있습니다. 프로모션이 표시되거나 첫 결제 금액이 0이거나 결제 요청 메시지가 나타나더라도 **프로모션 적용, 무료 구독, 구독 활성화, 기간 연장이 확인된 것은 아닙니다**. 실행 전에 Google Play에서 계정, 오늘의 결제 금액, 이후 요금과 갱신일을 확인해야 합니다. 도구를 중지해도 이미 제출한 거래는 취소되지 않습니다.
@@ -25,16 +25,16 @@
 
 **사용하는 운영체제에 맞춰 준비하세요.** macOS에서는 PowerShell을 설치할 필요가 없습니다.
 
-| 항목 | Windows | macOS |
-| --- | --- | --- |
-| 터미널 | **PowerShell 5.1 이상** | 기본 **Terminal**(zsh/bash) |
-| Python | **3.10 이상**(`python` 명령어) | **3.10 이상**(`python3`). 실행 시 로컬 `.venv` 생성 |
-| Git | Git for Windows | Xcode Command Line Tools 또는 Homebrew |
-| Android 환경 | 루팅 및 ADB를 활성화한 기기나 에뮬레이터. **Windows용 MuMuPlayer** 사용 절차 지원 | 루팅된 Android 기기 또는 호환 에뮬레이터. **Mac용 MuMuPlayer Pro**는 Apple Silicon 기종용이며 Intel Mac에서는 사용할 수 없음 |
-| Android 앱 | 확인할 계정으로 로그인한 Google Play Store 및 Google One | 연결할 Android 기기에 같은 앱 필요 |
-| ADB | 필요한 경우 Android SDK Platform-Tools 검색·다운로드 가능 | 별도로 설치(예: `brew install android-platform-tools`). `adb devices`로 확인 |
-| Frida | **16.5.9**. Windows 설정 도구가 준비할 수 있음 | 로컬 `.venv`에 **16.5.9** 설치. Android 기기와의 호환성 확인 필요 |
-| 실행 | `.\run-all.ps1` | `sh run-macos.sh` 또는 `ePlus-AI-Toolkit.command` |
+| 항목 | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| 터미널 | **PowerShell 5.1 이상** | 기본 **Terminal**(zsh/bash) | **Terminal (sh/bash)**, PowerShell 불필요 |
+| Python | **3.10 이상**(`python` 명령어) | **3.10 이상**(`python3`). 실행 시 로컬 `.venv` 생성 | **3.10 이상**(`python3`), `.venv` 생성 |
+| Git | Git for Windows | Xcode Command Line Tools 또는 Homebrew | 패키지 관리자로 Git 설치 |
+| Android 환경 | 루팅 및 ADB를 활성화한 기기나 에뮬레이터. **Windows용 MuMuPlayer** 사용 절차 지원 | 루팅된 Android 기기 또는 호환 에뮬레이터. **Mac용 MuMuPlayer Pro**는 Apple Silicon 기종용이며 Intel Mac에서는 사용할 수 없음 | 루팅한 Android 휴대전화를 USB로 연결, ADB 승인 기기 한 대 |
+| Android 앱 | 확인할 계정으로 로그인한 Google Play Store 및 Google One | 연결할 Android 기기에 같은 앱 필요 | 휴대전화에 Google Play Store와 Google One 필요 |
+| ADB | 필요한 경우 Android SDK Platform-Tools 검색·다운로드 가능 | 별도로 설치(예: `brew install android-platform-tools`). `adb devices`로 확인 | Platform-Tools 별도 설치, `PATH` 또는 `ADB_PATH` |
+| Frida | **16.5.9**. Windows 설정 도구가 준비할 수 있음 | 로컬 `.venv`에 **16.5.9** 설치. Android 기기와의 호환성 확인 필요 | **16.5.9**, Android 16 이상 차단 |
+| 실행 | `.\run-all.ps1` | `sh run-macos.sh` 또는 `ePlus-AI-Toolkit.command` | `sh run-linux.sh` |
 
 두 운영체제 모두 사용할 권한이 있고 올바르게 설정된 Android 환경이 필요합니다. macOS용 코드에는 Steps 0–5가 포함되어 있지만, **실제 Mac/MuMu 환경에서 결제가 정상 동작하는지는 검증되지 않았습니다**. [Windows 안내](docs/INSTALLATION.md)와 [macOS 안내](docs/MACOS-PREVIEW.md)를 함께 확인하세요.
 
@@ -105,6 +105,30 @@ sh run-macos.sh
 
 `sh run-macos.sh`는 **0–5단계**가 포함된 Textual 대시보드를 엽니다. `--check`는 환경을 확인하며 설정을 바꿀 수 있고, `--list`는 혜택 조회만 수행합니다. `--step 2`는 화면에서 단계를 선택할 뿐 **자동 결제하지 않습니다**. 2–5단계는 실제 요금이 발생할 수 있어 단계별 승인이 필요합니다. **실제 Mac/MuMu에서 결제는 아직 검증되지 않았습니다.** [Mac 상세 안내](docs/MACOS-PREVIEW.md)를 참고하세요.
 
+## Linux — 설치 및 실행
+
+Ubuntu x86_64에서 Git, `venv`와 `pip`를 사용할 수 있는 Python 3.10 이상, Android SDK Platform-Tools를 설치하세요. `adb`를 `PATH`에 추가하거나 `ADB_PATH`로 실행 파일을 지정합니다. Google Play 스토어와 Google One이 설치된 루팅 Android 휴대전화를 USB로 연결하세요. USB 디버깅을 켜고 휴대전화의 잠금을 해제한 후 연결을 승인합니다. ADB에 상태가 `device`인 기기가 한 대만 표시되는지 확인하세요.
+
+```sh
+git clone --branch main --single-branch https://github.com/hoangsvit/google-ai.git
+cd google-ai
+"${ADB_PATH:-adb}" devices
+sh run-linux.sh
+```
+
+**`main` 브랜치 사용:** Linux 기능이 병합된 후 위 명령으로 `main`을 직접 복제하세요. 개발 브랜치나 PR 브랜치로 전환할 필요가 없습니다.
+
+`run-linux.sh`가 포함된 버전을 사용하세요. 실행 스크립트는 대시보드를 열고 지정된 버전의 Textual과 Frida 16.5.9를 로컬 `.venv`에 설치합니다. Ubuntu에서 가상 환경을 만들 수 없다면 `python3-venv` 또는 사용 중인 Python 버전에 맞는 venv 패키지를 설치하세요.
+
+- `sh run-linux.sh --check`는 Step 0을 실행하며 Android, Frida 또는 네트워크 설정을 변경할 수 있습니다.
+- `sh run-linux.sh --list`는 Step 1을 실행해 결제 요청 없이 혜택을 조회합니다. 이 과정에서 Android 환경 설정이 이루어질 수 있습니다.
+- `sh run-linux.sh --step 3`은 Step 3이 선택된 고급 설정을 엽니다. `sh run-linux.sh --sequence`는 Step 2부터 시작하는 안내 설정을 엽니다. 두 명령 모두 단계를 자동으로 실행하지 않습니다.
+
+**Android 16 이상:** 고정 버전인 Frida 16.5.9는 Android 16을 지원하지 않으므로 Linux 실행 스크립트는 기기를 설정하기 전에 중단됩니다. **Diagnose Android connection**으로 USB 연결은 확인할 수 있습니다.
+
+**Steps 2–5에서는 Google Play에 실제 요금이 발생할 수 있습니다.** 각 단계마다 개별 승인, 현재 Play 계정 확인, 그리고 최신 조회 결과에서 정확히 일치하며 첫 기간 요금이 0인 혜택이 필요합니다. 다음 단계로 넘어가기 전에 Google Play에서 구독과 갱신일을 확인하세요. Linux 결제는 모의 테스트로 검증하며, 실기기 전체 검증은 아직 완료되지 않았습니다. [Linux 설치, USB 문제 해결 및 검증](docs/LINUX.md).
+
+
 ## 3. 대시보드 사용법
 
 단계가 실행되는 동안에는 **Check Device & Offers**, **Run**, 실행 모드와 단계 선택을 잠가 다른 작업이 동시에 시작되지 않도록 합니다. Step 0은 컴퓨터의 설정을 변경할 수 있습니다. Step 1은 결제를 시작하지 않지만 사전 준비 과정에서 ADB/Frida 설정이 바뀔 수 있습니다. 다음 단계로 진행하기 전에 반드시 Google Play에서 결과를 확인하세요. **Stop이나 Exit를 눌러도 이미 제출한 결제는 취소되지 않습니다.**
@@ -112,13 +136,23 @@ sh run-macos.sh
 
 **Check Device & Offers**는 **Step 1 — Available offers**를 실행하여 프로모션을 조회합니다. **구독 결제를 시작하지 않습니다**. **Live Status**와 **Show technical details**에서 진행 상황을 확인하세요. 30초 동안 로그가 없다는 경고는 반드시 프로그램이 멈췄다는 뜻이 아닙니다.
 
-**Advanced: Run by step** 모드:
+대시보드의 Step 1에서 확인이 완료되면 같은 동작으로 기존 기기 매핑을 이용한 제한된 읽기 전용 SKU 메타데이터 조회를 자동 실행합니다. 허가된 Android 프로세스를 계측하여 가격 단계, SKU 미반환 및 혜택 없음 상태를 표시하며, 결제를 시작하거나 새로운 유료 단계를 허용하지 않습니다. 혜택 목록을 스크롤하여 확인할 수 있습니다. 조회가 끝날 때까지 조작이 잠기며 **Stop SKU scan** 또는 Exit로 취소를 요청할 수 있습니다. 안내 순서는 Step 4에서 종료되고, 선택 사항인 Step 5는 기본 Step 1 보고서에 정확히 일치하는 지원 혜택이 있을 때만 제공되며 별도 확인이 필요합니다. [SKU 조회](docs/SKU-EXPLORER.md)를 참고하세요.
+
+화면이 대기 중일 때 도구는 기존 ADB 연결을 약 5초마다 확인합니다. ADB나 Android 기기를 찾지 못하면 팝업으로 조치 방법을 알려 줍니다. 이후에도 자동으로 확인하고 기기 상태를 갱신하지만, 다시 연결된 것만으로 결제 단계가 열리지는 않습니다. 단계가 실행 중이거나 다른 대화상자가 열려 있으면 모니터링을 잠시 멈춥니다. 백그라운드에서 기기를 설치하거나 연결하지 않으며, `adb devices` 실행 시 PC의 로컬 ADB 서버가 시작될 수 있습니다.
+
+Windows에서 **Check Device & Offers**를 실행하면 ADB를 찾고, 필요한 경우 공식 Android SDK Platform-Tools 다운로드를 시도합니다. 다운로드나 설치가 실패할 수 있으므로 오류가 나면 **Show technical details**를 확인하세요. macOS에서는 Mac 안내에 따라 Platform-Tools를 설치합니다. MuMu는 별도로 설치하고 실행한 뒤 root와 ADB 디버깅을 켜고 Google Play와 Google One에 로그인해야 합니다.
+
+새 Step 1 검사에서 프로모션 목록을 가져오고 Play 계정이 확인되어야 Step 2–5가 열립니다. 12개월 프로모션 `12months-eft`의 첫 기간 가격이 0이면 완료 팝업과 메인 화면에 **Continue to Step 2**가 표시됩니다. 그렇지 않으면 프로모션 목록을 확인하세요. 이 버튼은 별도의 확인 창을 열 뿐, 자격이나 최종 비용을 보장하지 않습니다. 결제 요청 후에는 Google Play에서 실제 구독, 갱신일과 요금을 확인한 다음 **Verified in Google Play → Next**를 선택하세요. 이후 단계마다 별도 확인이 필요합니다. 다시 검사하거나 결제 단계가 실패하거나 기기가 바뀌면 결제 단계가 다시 잠길 수 있습니다.
+
+**Choose another step** 모드:
+
+기본적으로 선택한 단계만 실행합니다. 연속 실행 모드는 **Choose another step**의 단계 선택 메뉴 맨 아래에서 **More run options…**를 선택해 표시할 수 있습니다.
 
 | 모드 | 기능 |
 | --- | --- |
-| **One step only** | 선택한 Step 0–5 하나만 실행 |
-| **From selected step** | 선택한 Step(2–5)부터 안내에 따라 여러 단계를 진행 |
-| **All: Steps 2–5** | Step 2부터 순서대로 진행하며, Step 5는 선택할 수 있음 |
+| **Stop after this step** | 선택한 Step 0–5 하나만 실행 |
+| **Offer the next step** | 선택한 Step(2–4)부터 안내에 따라 여러 단계를 진행 |
+| **Start at Step 2** | Step 2부터 순서대로 진행하며, Step 5는 선택할 수 있음 |
 
 | Step | 기능 | 위험 |
 | --- | --- | --- |
@@ -145,6 +179,18 @@ sh run-macos.sh
 TUI에서 **각 결제 단계는 별도 승인이 필요합니다**. 도구가 결제 제출을 시도했다고 표시해도 [Google Play 구독 관리](https://play.google.com/store/account/subscriptions)에서 실제 구독, 요금과 갱신일을 확인하세요. 직접 변경 사항을 확인한 경우에만 **Verified in Google Play → Next**를 선택하세요. 도구는 구독 성공을 독립적으로 증명할 수 없습니다.
 
 **중지/종료:** Step 0–1에서는 Stop이 로컬 검사를 종료하도록 요청합니다. Step 2–5의 **Stop after this step**은 이후 단계를 막을 뿐 **진행 중인 결제를 강제 종료하지 않습니다**. 결제 중 **Q / Exit**는 현재 단계 종료 후 종료합니다. **D**는 기술 로그, **R**은 선택한 모드 실행입니다.
+
+### 기기 정보, 계정 및 기록
+
+Device 카드에는 확인된 Android 버전, SDK, ABI 및 ADB 연결 정보가 표시됩니다. 마우스를 올리면 전체 정보를 볼 수 있습니다. Account 옆의 **Choose account**는 Android에 로그인된 계정을 나열합니다. Play Store와 Google One에서 원하는 계정을 선택한 뒤 Step 1을 다시 실행하세요. Play Store가 현재 사용 중인 프로필의 이메일을 명시하면 그 정보로 계정을 구분합니다.
+
+작업 패널은 내용에 맞게 줄어들고 **Live Status**가 남은 높이를 사용하며 최신 작업을 맨 위에 표시합니다. **Show technical details**의 로그는 새 줄을 따라 자동으로 스크롤됩니다. 기본 버튼과 **Run this step**에는 실행 중인 단계와 경과 초가 표시됩니다. Windows에서는 혜택 확인 과정의 환경 점검이 끝나면 Step 0에 체크 표시가 붙습니다. 새로운 확인 결과가 없으면 초록색 **Check Device & Offers — Step 1** 버튼이 나타납니다.
+
+**Recent history**는 시작, 결과 및 **Verified in Google Play → Next** 동작을 `logs/stage-history/`에 저장합니다. 시작 시 가장 최근 기록을 복원하며, 계정을 선택하면 해당 계정의 기록이 표시됩니다. **↺**는 이전에 실행을 시도한 단계입니다. 기록만으로 구독 성공을 확인하거나 결제를 활성화할 수는 없습니다. 도구를 다시 열거나 계정을 바꾸면 Step 1을 새로 실행해야 합니다. 기록 저장 기능이 추가되기 전의 실행은 복원할 수 없습니다.
+
+연결 끊김 창의 **Retry connection**은 처리 중 **Retrying…**와 경과 초를 표시합니다. **Got it**으로 창을 닫습니다. Windows에서는 로컬 에뮬레이터 재연결을 시도하며, 단계 시작 시 연결된 ADB 기기가 없을 때도 동일하게 처리합니다. 조회 중 앱이 시작되지 않으면 한 번 다시 시작합니다. 실패하면 MuMu를 닫았다가 다시 열고 Android 부팅이 끝난 뒤 Step 1을 실행하세요. 혜택 조회 전에 Google One을 다시 시작하며, Play Store가 이미 실행 중이면 계속 사용합니다. **Reload toolkit**은 대기 중인 화면을 로컬 코드로 다시 시작하고 새 세션을 엽니다.
+
+**Subscribe**를 자동으로 누르려면 결제 화면의 이메일이 예상 계정과 정확히 일치하고, 오늘 결제할 합계가 0이며, 체험 기간과 요청한 혜택도 일치해야 합니다. 이메일이 없거나 다르면 자동 누르기를 중단하고 직접 확인하도록 안내합니다. 결제 단계마다 별도 승인이 필요합니다. 제출 후에는 Google Play에서 구독, 갱신일 및 청구 내역을 확인하세요. 세 번의 카드 확인 안내는 결제 승인 화면에 표시됩니다.
 
 ## 4. PowerShell 명령어 (고급)
 
@@ -203,6 +249,8 @@ ADB에서 실제로 표시되는 시리얼만 사용하세요. `-Force`는 계�
 
 ePlus AI Toolkit 설치나 사용에 문제가 있다면 [ePlus Telegram 지원·토론 게시물](https://t.me/eplus_news/29)에서 커뮤니티와 연락하고 해결 방법을 공유할 수 있습니다. 재현 가능한 버그는 [GitHub Issue](https://github.com/hoangsvit/google-ai/issues)로도 제보해 주세요. **비밀번호, OTP/2FA 코드, 오퍼/구매 토큰, 개인정보가 포함된 원본 로그, 카드 정보를 공개하지 마세요.** Google 공식 지원 채널은 아닙니다.
 
+**Telegram Boost로 프로젝트 응원하기:** ePlus AI Toolkit이 도움이 되었고 Telegram Premium을 이용 중이라면, 보유한 부스트로 [@eplus_news 채널을 부스트](https://t.me/eplus_news?boost)해 주세요. 채널의 더 많은 커뮤니티 기능을 활성화하는 데 도움이 됩니다. 부스트는 전적으로 자율이며 도구 이용, 기능 또는 지원에 영향을 주지 않습니다.
+
 **Google AI Pro 프로모션에 참여할 수 없나요?** 별도의 ePlus.DEV 커뮤니티 프로젝트인 [Muse Invite Hub](https://github.com/ePlus-DEV/muse-invite-hub)에서 [Muse 초대 코드를 찾거나 공유](https://muse.eplus.dev/)할 수 있습니다. **Muse는 별도 서비스**이며 초대 코드로 **Google AI Pro 구독을 활성화하거나 대신할 수 없습니다**. 코드 이용 가능 여부 및 지역·계정 자격은 보장되지 않습니다.
 
 ## 저장소 구성
@@ -227,6 +275,6 @@ ePlus AI Toolkit 설치나 사용에 문제가 있다면 [ePlus Telegram 지원�
 
 ## 제작 및 기여
 
-**원저자:** [@gylive](https://github.com/gylive) — [google-ultra](https://github.com/gylive/google-ultra). **관리자:** [David Nguyen (@hoangsvit)](https://github.com/hoangsvit) / [ePlus.DEV](https://eplus.dev). 원본 MIT 저작권 고지는 `THIRD_PARTY_NOTICES.md`에 보존되어 있습니다.
+원저자, 관리자 및 모든 기여자에게 감사드립니다. 자세한 내용은 [기여자 및 감사 목록](CONTRIBUTORS.md)을 확인하세요. 원본 MIT 고지는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 보존되며, 관련 없는 새로운 기여에 자동으로 라이선스를 부여하지 않습니다.
 
 [문서 모음](docs/README.md) · [이전 한국어 참고 안내](docs/i18n/README.ko.md) · [결제 안전](docs/SAFETY.md)
